@@ -1,0 +1,6 @@
+<launch>
+    <!-- rosrun으로는 출력을 볼 수 있지만, roslaunch로 실행하면 출력을 볼 수 없기에 output="screen"으로 지정해준다. -->
+    <node name="app_agent_mec" pkg="app_module" type="app_agent_mec.py" output="screen" />
+    <node name="app_manager" pkg="app_module" type="app_manager.py" output="screen" /> 
+    <node name="app_scheduler" pkg="app_module" type="app_scheduler.py" output="screen" />
+</launch>
