@@ -1,7 +1,6 @@
 const STATE_MOVING = 'moving';
 const STATE_QUARANTINE = 'quarantine';
 let image_and_sound_dict = {}
-let speak_quarantine_instance = null;
 let ui_apply = null;
 var idx = 0;
 
@@ -54,10 +53,6 @@ app.controller("BodyCtrl", function ($scope, $http) {
                     image_and_sound_dict[i] = tmp;
                 }
             }
-            
-            console.log(image_and_sound_dict);
-
-            safeApply($scope, function (bodyScope) {})
         })
 
         safeApply($scope, function (bodyScope) {});
@@ -68,14 +63,18 @@ app.controller("BodyCtrl", function ($scope, $http) {
             idx = 0;
         }
 
-        let img = Object.values(image_and_sound_dict)[idx]["image"];
-        let key = Object.values(image_and_sound_dict)[idx]["speak"].split(".")[0];
+        let image_url = Object.values(image_and_sound_dict)[idx]["image"];
+        let speak_key = Object.values(image_and_sound_dict)[idx]["speak"].split(".")[0];
         let image_tag = document.getElementById("protect_img");
 
-        image_tag.setAttribute("src", "/contents/img/quarantine/" + img);
-        speak_quarantine_instance = create_quarantine_speak(key);
+        // 이미지 전환
+        image_tag.setAttribute("src", "/contents/img/quarantine/" + image_url);
+        // 음성 발화
+        create_quarantine_speak(speak_key);
 
         idx += 1;
+
+        // check timestamp
         console.log("Now Time = ", new Date().toLocaleTimeString());
         safeApply($scope, function (bodyScope) {});
     }
@@ -103,18 +102,19 @@ app.controller("BodyCtrl", function ($scope, $http) {
                     LED_FLOW(LED_DEVICE_HEAD, LED_COLOR_CYAN, LED_COLOR_OFF, 1, LED_DIRECTION_COUNTER, LED_REPEAT)
                     LED_SET_COLOR(LED_DEVICE_BOTTOM, LED_COLOR_CYAN)
 
-                    let img = Object.values(image_and_sound_dict)[idx]["image"];
-                    let key = Object.values(image_and_sound_dict)[idx]["speak"].split(".")[0];
-
+                    // setInterval에서 설정해준 time만큼의 공백을 채워줄 수 있기 위해서 선언
+                    let image_url = Object.values(image_and_sound_dict)[idx]["image"];
+                    let speak_key = Object.values(image_and_sound_dict)[idx]["speak"].split(".")[0];
                     let image_tag = document.getElementById("protect_img");
-                    image_tag.setAttribute("src", "/contents/img/quarantine/" + img);
+                    image_tag.setAttribute("src", "/contents/img/quarantine/" + image_url);
+                    create_quarantine_speak(speak_key);
 
                     idx += 1;
-                    speak_quarantine_instance = create_quarantine_speak(key);
+
+                    // check timestamp
                     console.log("Now Time = ", new Date().toLocaleTimeString());
+
                     setInterval("ui_apply()", 10000);
-                    
-                    safeApply($scope, function (bodyScope) {});
                     break;
             }
         }
