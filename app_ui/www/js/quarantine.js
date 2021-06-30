@@ -1,9 +1,9 @@
 const STATE_MOVING = 'moving';
 const STATE_QUARANTINE = 'quarantine';
-let image_and_sound_dict = {};
+let image_and_sound_dict = {}
 let speak_quarantine_instance = null;
-var idx = 0;
 let ui_apply = null;
+var idx = 0;
 
 app.controller("BodyCtrl", function ($scope, $http) {
     bodyScope = $scope;
@@ -45,7 +45,18 @@ app.controller("BodyCtrl", function ($scope, $http) {
 
         $.getJSON('../document/quarantine')
         .then((img) => {
-            image_and_sound_dict = img
+            for (let i=0; i<img.length; i++) {
+                let use = Object.values(img)[i]["use"];
+                let tmp = {};
+                if (use == true) {
+                    tmp["image"] = Object.values(img)[i]["image"];
+                    tmp["speak"] = Object.values(img)[i]["speak"];
+                    image_and_sound_dict[i] = tmp;
+                }
+            }
+            
+            console.log(image_and_sound_dict);
+
             safeApply($scope, function (bodyScope) {})
         })
 
@@ -53,18 +64,18 @@ app.controller("BodyCtrl", function ($scope, $http) {
     }
 
     ui_apply = function() {
-        let img = Object.values(image_and_sound_dict)[idx]["image"];
-        let key = Object.values(image_and_sound_dict)[idx]["speak"].split(".")[0];
-
-        let image_tag = document.getElementById("protect_img");
-        image_tag.setAttribute("src", "/contents/img/quarantine/" + img);
-
-        idx += 1;
-
-        if (idx >= image_and_sound_dict.length) {
+        if (idx >= Object.keys(image_and_sound_dict).length) {
             idx = 0;
         }
+
+        let img = Object.values(image_and_sound_dict)[idx]["image"];
+        let key = Object.values(image_and_sound_dict)[idx]["speak"].split(".")[0];
+        let image_tag = document.getElementById("protect_img");
+
+        image_tag.setAttribute("src", "/contents/img/quarantine/" + img);
         speak_quarantine_instance = create_quarantine_speak(key);
+
+        idx += 1;
         console.log("Now Time = ", new Date().toLocaleTimeString());
         safeApply($scope, function (bodyScope) {});
     }
