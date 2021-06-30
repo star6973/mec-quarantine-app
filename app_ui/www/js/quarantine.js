@@ -21,7 +21,7 @@ app.controller("BodyCtrl", function ($scope, $http) {
     }
 
     $scope.ui_initialize = function () {
-        $scope.quarantine_state = STATE_QUARANTINE;
+        $scope.quarantine_state = STATE_MOVING;
         lottieloader('quarantine_mv_lottie', './contents/img/lottie/move/data.json', true, true);
     }
 
@@ -89,18 +89,12 @@ app.controller("BodyCtrl", function ($scope, $http) {
                     console.log("move to quarantine station ...");
                     $scope.quarantine_state = STATE_MOVING;
     
-                    lpt_control(0, 0, 0);
                     lottieloader('quarantine_mv_lottie', './contents/img/lottie/move/data.json', true, true);
-    
-                    LED_SET_COLOR(LED_DEVICE_BOTTOM, LED_COLOR_OFF);
                     break;
     
                 case 'quarantine':
                     console.log("start quarantine service ...");
                     $scope.quarantine_state = STATE_QUARANTINE;
-    
-                    LED_FLOW(LED_DEVICE_HEAD, LED_COLOR_CYAN, LED_COLOR_OFF, 1, LED_DIRECTION_COUNTER, LED_REPEAT)
-                    LED_SET_COLOR(LED_DEVICE_BOTTOM, LED_COLOR_CYAN)
 
                     // setInterval에서 설정해준 time만큼의 공백을 채워줄 수 있기 위해서 선언
                     let image_url = Object.values(image_and_sound_dict)[idx]["image"];
