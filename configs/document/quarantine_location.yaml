@@ -10,9 +10,9 @@
         z: 0.5
         w: -0.866
       lpt:
-        - lift: 300
-          pan: 0
-          tilt: 0
+        lift: 300
+        pan: 0
+        tilt: 0
     - pose:
         x: -18.9477864505
         y: 1.71135316756
@@ -23,9 +23,9 @@
         z: 0.0475016233773
         w: -0.998871160749
       lpt:
-        - lift: 300
-          pan: 0
-          tilt: 0
+        lift: 300
+        pan: 0
+        tilt: 0
 - name: "W_103"
   poi:
     - pose:
@@ -38,6 +38,6 @@
         z: 0.259
         w: -0.966
       lpt:
-        - lift: 300
-          pan: 0
-          tilt: 0
+        lift: 300
+        pan: 0
+        tilt: 0
