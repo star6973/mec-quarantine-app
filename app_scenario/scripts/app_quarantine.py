@@ -3,40 +3,27 @@
 
 import os
 import signal
-import cv2
-import threading
 import traceback
 import time
-import yaml
-import base64
-import logging
-import json
-import rospy
 import datetime
 import dateutil.parser
-import numpy
 import urllib
-import base64
-import tf
-import tf.transformations as transform
-from tf.transformations import *
-import transform as compass
 
 from rade.modulebase import *
-from rade.common import Node, ResponseInfo
+from rade.common import ResponseInfo
 from rade.utils import *
 
-from geometry_msgs.msg import Point, Quaternion, Pose, PoseStamped
+from geometry_msgs.msg import Point, Pose
 from workerbee_navigation.msg import MoveToActionGoal
 from workerbee_msgs.msg import ActionState
 from workerbee_platform_msgs.msg import MoveToDriverState
 from sero_actions.msg import *
-from sero_temperature_monitor.msg import *
 
 class MyLoop(Loop):
     def on_create(self, event):
+        self.logger.info("$$$ create quarantine!!!")
 
-        # self.add_listener(self.make_node("{namespace}/quarantine/ui_ready"), self.)
+        self.add_listener(self.make_node("{namespace}/quarantine/ui_ready"), self.on_front_ui_ready)
         # self.add_listener(self.make_node("{namespace}/quarantine/ui_finish"), self.)
         # self.add_listener(self.make_node("{namespace}/workerbee_navigation/robot_pose"), self.)
         # self.add_listener(self.make_node("{namespace}/sero_mobile/lpt"), self.)
@@ -45,20 +32,29 @@ class MyLoop(Loop):
         return ResponseInfo()
     
     def on_resume(self, event):
-        self.publish(self.make_node("{namespace}/robot_display/open_url"), {"content": "http://0.0.0.0:8080/quarantine.html?" + urllib.urlencode(event)})
+        self.logger.info("$$$ resume quarantine!!!")
+        self.publish(self.make_node("{namespace}/robot_display/open_url"), {"content": "http://0.0.0.0:8080/app_quarantine.html?" + urllib.urlencode(event)})
 
         self.robot_pose = Pose()
-        self.location_doc = self.load_document("location")
-        self.schedule_end_time = dateutil.parser.parse("23:00:00")
+        self.location_doc = self.load_document("quarantine_location")
 
-        self.target_loc = "W_102"
+        self.logger.info("location_doc = ", self.location_doc)
+
+        self.schedule_end_time = dateutil.parser.parse(event["end_time"])
+        self.target_loc = event["location"]
+
+        self.logger.info("schedule_end_time = ", self.schedule_end_time, type(self.schedule_end_time))
+        self.logger.info("target_loc = ", self.target_loc, type(self.target_loc))
+
         self.speed = None
         self.disable_global_path_planning = False
         self.finish_quarantine_flag = False
         self.finish_drive_flag = False
+        self.finish_lpt_flag = False
         self.poi_list = self.get_poi_list_with_target_loc()
+        self.logger.info("poi list with target location = ", self.poi_list)
 
-        self.poi_idx = -1
+        self.poi_idx = 0
         self.try_drive_count = 0
         self.TRY_DRIVE_COUNT = 5
 
@@ -77,34 +73,44 @@ class MyLoop(Loop):
             3. schedule_end_time이 끝나기 전까지, location.yaml에 있는 poi 위치들을 반복해서 이동한다.
             4. schedule_end_time이 끝나면 charging 시나리오로 전환한다.
         '''
+        self.logger.info("### loop quarantine!!!")
 
         if self.finish_quarantine_flag == False:
+            self.logger.info(datetime.datetime.now())
             # 현재 시간이 schedule_end_time을 넘어갈 경우 quarantine 모듈 종료
             if self.schedule_end_time < datetime.datetime.now():
+                self.logger.info("현재 시간이 schedule_end_time을 넘어갈 경우")
                 pass
 
             else:
-                # if self.finish_lpt_flag == False:
-                #     self.action_lpt()
+                self.logger.info("Start QUARANTINE!!!!!!!!!!!")
+                if self.finish_lpt_flag == False:
+                    self.set_to_lpt()
 
                 if self.finish_drive_flag == False:
-                    self.poi_idx += 1
+                    
+                    self.logger.info("poi idx = ", self.poi_idx)
 
                     # if self.front_ui_ready == False:
                     #     self.pub_ui()
 
                     if self.try_drive_count < self.TRY_DRIVE_COUNT:
+                        self.logger.info("Start Drive poi!!!!")
                         self.move_to_poi()
+
                     else:
                         self.finish_quarantine_flag = True
 
         return ResponseInfo()
 
-    def on_puase(self, evnet):
+    def on_pause(self, evnet):
         return ResponseInfo()
 
     def on_destroy(self, event):
         return ResponseInfo()
+
+    def on_front_ui_ready(self, msg):
+        self.front_ui_ready = True
 
 
     def get_poi_list_with_target_loc(self):
@@ -124,6 +130,8 @@ class MyLoop(Loop):
         target_pan = target_poi["lpt"]["pan"]
         target_tilt = target_poi["lpt"]["tilt"]
 
+        self.logger.info("\n\n @@@@@ 타겟 LPT 값들 = {}, {}, {}\n".format(target_lift, target_pan, target_tilt))
+
         # target lpt값으로 액션 명령어 수행
         self.action_sync(
             self.make_node("{namespace}/sero_mobile/lpt_set_position"),
@@ -134,8 +142,17 @@ class MyLoop(Loop):
             },
         )
 
+        self.finish_lpt_flag = True
+
     def move_to_poi(self):
+
+        if self.poi_idx >= len(self.poi_list):
+            self.logger.info("All poi Finish!!")
+            self.finish_quarantine_flag = True
+            return
+
         pose = Pose()
+
         target_poi = self.poi_list[self.poi_idx]
         pose.position = Point(x=target_poi["pose"]["x"], y=target_poi["pose"]["y"], z=target_poi["pose"]["z"])
         pose.orientation.x = target_poi["orientation"]["x"]
@@ -143,16 +160,12 @@ class MyLoop(Loop):
         pose.orientation.z = target_poi["orientation"]["z"]
         pose.orientation.w = target_poi["orientation"]["w"]
 
-        self.logger.info("target poi pose = {}".format(pose))
-        self.finish_drive_flag = True
-        return
-
         # MoveToActionGoal Msg
         msg = MoveToActionGoal()
         msg.goal.goal.header.frame_id = "map"
         msg.goal.goal.pose = pose
-        msg.goal.speed = self.speed
-        msg.goal.disable_global_path_planning = self.disable_global_path_planning
+        msg.goal.speed = 0.2
+        msg.goal.disable_global_path_planning = False
         msg.goal.patience_timeout = 30.0
         msg.goal.disable_obstacle_avoidance = False
         msg.goal.endless = False
@@ -162,6 +175,7 @@ class MyLoop(Loop):
 
         gen = self.action_generate(action_node, msg, timeout=30.0, auto_cancel=True)
 
+        # doing action loop not activate
         for process in gen:
             driver_state_code = process.body["state"]["driver_state"]["code"]
             action_state_code = process.body["state"]["action_state"]["code"]
@@ -178,20 +192,20 @@ class MyLoop(Loop):
             # 아래 조건들은 특수한 경우의 예외 조건
             if driver_state_code == MoveToDriverState.ERROR_PLANNER and action_state_code == ActionState.ERROR_DRIVER:
                 self.logger.error("\n\n @@@@@ ERROR PLANNING \n")
-                self.drive_finish = False
-                self.drive_error_count += 1
+                self.finish_drive_flag = False
+                self.try_drive_count += 1
                 time.sleep(2)
 
             elif driver_state_code != MoveToDriverState.NO_ERROR or action_state_code != ActionState.NO_ERROR:
-                self.drive_finish = False
-                self.drive_error_count += 1
+                self.finish_drive_flag = False
+                self.try_drive_count += 1
                 time.sleep(2)
 
             else:
                 self.logger.info("\n\n @@@@@ Action Generate Result No Error \n")
-                self.drive_finish = True
-                self.drive_error_count = 0
-                self.pub_moving()
+                self.finish_drive_flag = False
+                self.try_drive_count = 0
+                self.poi_idx += 1
 
         # ERROR
         else:
@@ -201,10 +215,8 @@ class MyLoop(Loop):
                 self.logger.error("\n\n @@@@@ LOCALIZATION FAULT \n")
 
             self.logger.error("\n\n @@@@@ ERROR DRIVER \n")
-            self.drive_finish = False
-            self.drive_error_count += 1
-
-
+            self.finish_drive_flag = False
+            self.try_drive_count += 1
 
 
 __class = MyLoop
