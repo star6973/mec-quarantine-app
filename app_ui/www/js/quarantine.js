@@ -2,6 +2,7 @@ const STATE_MOVING = 'moving';
 const STATE_QUARANTINE = 'quarantine';
 let image_and_sound_dict = {}
 let ui_apply = null;
+let interval = null;
 var idx = 0;
 
 app.controller("BodyCtrl", function ($scope, $http) {
@@ -39,10 +40,11 @@ app.controller("BodyCtrl", function ($scope, $http) {
     }
 
     $scope.Initializing = () => {
-        nats.addListener(namespace + '/robot_scenario/event', $scope.onQuarantine);
-        nats.publish(namespace + '/inspection/event/ui_ready', {});
+        nats.addListener(namespace + '/robot_scenario/quarantine_start', $scope.onStartQuarantine);
+        nats.addListener(namespace + '/robot_scenario/quarantine_finish', $scope.onEndQuarantine);
+        nats.publish(namespace + '/quarantine/ui_ready', {});
 
-        $.getJSON('../document/quarantine')
+        $.getJSON('../document/image_speak_item_box')
         .then((img) => {
             for (let i=0; i<img.length; i++) {
                 let use = Object.values(img)[i]["use"];
@@ -79,7 +81,15 @@ app.controller("BodyCtrl", function ($scope, $http) {
         safeApply($scope, function (bodyScope) {});
     }
 
-    $scope.onQuarantine = async (msg) => {
+    $scope.onEndQuarantine = () => {
+        console.log("End Schedule Time and Call Clear Interval");
+
+        clearInterval(interval);
+        nats.publish(namespace + '/quarantine/ui_finish', {});
+        safeApply($scope, function (bodyScope) {});
+    }
+
+    $scope.onStartQuarantine = (msg) => {
         let service = msg.service;
         let state = msg.state;
 
@@ -108,7 +118,7 @@ app.controller("BodyCtrl", function ($scope, $http) {
                     // check timestamp
                     console.log("Now Time = ", new Date().toLocaleTimeString());
 
-                    setInterval("ui_apply()", 10000);
+                    interval = setInterval("ui_apply()", 10000);
                     break;
             }
         }
