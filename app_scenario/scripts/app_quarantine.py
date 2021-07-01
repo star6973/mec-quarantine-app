@@ -61,7 +61,6 @@ class MyLoop(Loop):
         self.finish_drive_flag = False
         self.finish_lpt_flag = False
         
-
         '''
             Flags for others
         '''
@@ -73,6 +72,7 @@ class MyLoop(Loop):
         # javascript로 구성된 front-end단이 python으로 구성된 back-end단의 실행 시간보다 빠르기 때문에 sleep을 걸어준다.
         while self.front_ui_ready == False:
             time.sleep(0.5)
+            self.front_ui_ready = True
 
         return ResponseInfo()
 
