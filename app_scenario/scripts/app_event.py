@@ -129,7 +129,7 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, exit)
     try:
         wrapper = RosWrapper(
-            __class, manifest_path=os.path.join(os.path.dirname(__file__), "idle.yaml")
+            __class, manifest_path=os.path.join(os.path.dirname(__file__), "app_event.yaml")
         )
     except:
         traceback.print_exc()
