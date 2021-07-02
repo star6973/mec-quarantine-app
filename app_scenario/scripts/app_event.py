@@ -27,6 +27,8 @@ class MyLoop(Loop):
         self.now_time = None
         self.start_time = None
         self.end_time = None
+        self.calc_end_time = None
+        self.mode_name = None
         self.gate_name = None
         self.location_name = None
 
@@ -57,21 +59,25 @@ class MyLoop(Loop):
 
                 self.gate_name = sch_md["gate"]
                 self.location_name = sch_md["location"]
-                sch_md_cet = dateutil.parser.parse(sch_md["calculated_end_time"])
-                sch_md_mode = sch_md["name"]
+                self.calc_end_time = dateutil.parser.parse(sch_md["calculated_end_time"])
+                self.mode_name = sch_md["name"]
 
                 if sch_st <= self.now_time <= sch_et:
-                    if sch_md_mode == "inspection" and self.gate_name != "-1" and self.now_time < sch_md_cet:
+                    if self.mode_name == "inspection" and self.gate_name != "-1" and self.now_time < self.calc_end_time:
                         self.start_time = self.now_time
-                        self.end_time = sch_md_cet
+                        self.end_time = self.calc_end_time
                     
                     else:
                         self.start_time = self.now_time
                         self.end_time = sch_et
 
-                else:
+                elif self.now_time < sch_st:
                     self.start_time = self.now_time
                     self.end_time = sch_st
+
+            else:
+                self.start_time = self.now_time
+                self.end_time = dateutil.parser.parse("23:00:00")
 
         except Exception as e:
             self.start_time = self.now_time
@@ -82,7 +88,7 @@ class MyLoop(Loop):
             2. quarantine
             3. charging
         '''
-        if self.gate_name != None and sch_md == "inspection":
+        if (self.gate_name != None and self.gate_name != "-1") and self.mode_name == "inspection":
             self.logger.info("\nStart Inspection!! (Feat. IDLE)\n")
 
             self.publish(
@@ -94,7 +100,7 @@ class MyLoop(Loop):
                 },
             )
 
-        elif self.gate_name != None and sch_md == "quarantine":
+        elif (self.gate_name != None and self.gate_name != "-1") and self.mode_name == "quarantine":
             self.logger.info("\nStart Quarantine!! (Feat. IDLE)\n")
 
             self.publish(
