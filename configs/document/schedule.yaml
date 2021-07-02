@@ -1,0 +1,8 @@
+- start_time: 10:00:00
+  end_time: 23:00:00
+  mode:
+    gate: "-1"
+    calculated_end_time: 23:00:00
+    type: S
+    location: W_103
+    name: inspection
