@@ -5,7 +5,7 @@ import os
 import signal
 import traceback
 import time
-import datetime
+from datetime import datetime, timedelta
 import dateutil.parser
 import urllib
 
@@ -87,9 +87,10 @@ class MyLoop(Loop):
     '''
     def on_loop(self):
         if self.finish_quarantine_flag == False:
-            if self.schedule_end_time < datetime.datetime.now():
+            if self.schedule_end_time < datetime.now():
                 self.publish(self.make_node("{namespace}/robot_scenario/quarantine_finish"), {})
                 self.finish_quarantine_flag = True
+                self.publish(self.make_node("{namespace}/app_manager/idle"), {})
 
             else:
                 if self.finish_lpt_flag == False:
@@ -116,7 +117,6 @@ class MyLoop(Loop):
                         self.logger.warning("DRIVING 액션 수행 실패")
                         self.finish_quarantine_flag = True
 
-        self.publish(self.make_node("{namespace}/app_manager/idle"), {})
         return ResponseInfo()
 
     def on_pause(self, evnet):
