@@ -22,7 +22,6 @@ from sero_actions.msg import *
 class MyLoop(Loop):
     def on_create(self, event):
         self.add_listener(self.make_node("{namespace}/quarantine/ui_ready"), self.on_front_ui_ready)
-        self.add_listener(self.make_node("{namespace}/quarantine/ui_finish"), self.on_front_ui_finish)
 
         return ResponseInfo()
     
@@ -89,7 +88,8 @@ class MyLoop(Loop):
     def on_loop(self):
         if self.finish_quarantine_flag == False:
             if self.schedule_end_time < datetime.datetime.now():
-                pass
+                self.publish(self.make_node("{namespace}/robot_scenario/quarantine_finish"), {})
+                self.finish_quarantine_flag = True
 
             else:
                 if self.finish_lpt_flag == False:
@@ -97,7 +97,17 @@ class MyLoop(Loop):
                         self.action_lpt()
                     else:
                         self.logger.warning("LPT 액션 수행 실패")
-                        self.finish_lpt_flag = True
+                        self.finish_quarantine_flag = True
+
+                if self.front_ui_ready == True:
+                    self.publish(
+                        self.make_node("{namespace}/robot_scenario/quarantine_start"),
+                        {
+                            "service": "quarantine",
+                            "state": "quarantine"
+                        }
+                    )
+                    self.front_ui_ready = False
 
                 if self.finish_drive_flag == False:
                     if self.try_drive_count < self.TRY_DRIVE_COUNT:
@@ -106,6 +116,7 @@ class MyLoop(Loop):
                         self.logger.warning("DRIVING 액션 수행 실패")
                         self.finish_quarantine_flag = True
 
+        self.publish(self.make_node("{namespace}/app_manager/idle"), {})
         return ResponseInfo()
 
     def on_pause(self, evnet):

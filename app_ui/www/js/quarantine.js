@@ -85,7 +85,6 @@ app.controller("BodyCtrl", function ($scope, $http) {
         console.log("End Schedule Time and Call Clear Interval");
 
         clearInterval(interval);
-        nats.publish(namespace + '/quarantine/ui_finish', {});
         safeApply($scope, function (bodyScope) {});
     }
 
