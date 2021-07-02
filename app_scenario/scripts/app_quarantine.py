@@ -5,7 +5,7 @@ import os
 import signal
 import traceback
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 import dateutil.parser
 import urllib
 
