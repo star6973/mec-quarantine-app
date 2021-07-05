@@ -228,7 +228,7 @@ class MyLoop(Loop):
                 schedule_list = [self.regular_mission_schedule]
 
             self.logger.info("Final Schedule List = {}".format(schedule_list))
-            # self.change_module(schedule_list)
+            self.change_module(schedule_list)
         
     def check_receive_schedules(self):
         for sch in self.receive_schedules_data:
@@ -240,7 +240,6 @@ class MyLoop(Loop):
             sch_et = dateutil.parser.parse(sch["endtime"].split(" ")[1]) # string -> datetime
 
             if sch_et < now_time:
-                self.logger.info("\n 현재 시간이 스케줄이 끝나는 시간보다 큰 경우, 확인 필요 없기 때문에 무시\n")
                 continue
 
             elif now_time < sch_st:
@@ -258,7 +257,6 @@ class MyLoop(Loop):
                 break
 
             elif sch_st <= now_time <= sch_et:
-                self.logger.info("\n 현재 시간이 스케줄 시간 범위내에 들어온 경우\n")
                 # 긴급 충전인 경우
                 if sch["type"] == "I":
                     self.is_immediate_charging = True
@@ -284,33 +282,36 @@ class MyLoop(Loop):
                     if self.service_mode == "inspection":
                         self.logger.info("\n@@@@@@@@@@@@@@@@@@ 감시 스케줄 작성하기 !!!!\n")
                         time_offset_prev = now_time + timedelta(minutes=self.time_offset_prev)
-                        time_offset_prev = datetime.strftime(time_offset_prev, "%H:%M:%S") # string -> datetimee
+                        time_offset_prev = datetime.strftime(time_offset_prev, "%H:%M:%S") # datetime -> string
+                        time_offset_prev = dateutil.parser.parse(time_offset_prev) # string -> datetime
 
                         time_offset_next = now_time + timedelta(minutes=self.time_offset_next)
                         time_offset_next = datetime.strftime(time_offset_next, "%H:%M:%S") # string -> datetime
-
-                        self.logger.info("time_offset_prev = {}".format(time_offset_prev))
-                        self.logger.info("time_offset_next = {}".format(time_offset_next))
+                        time_offset_next = dateutil.parser.parse(time_offset_next) # string -> datetime
 
                         for arr in self.receive_arrivals_data:
                             value_time = arr["estimatedDateTime"] # unicode
                             time_estimated_arrival = "".join([value_time[i] if i % 2 == 0 else value_time[i] + ":" for i in range(len(value_time))]) + "00"
                             time_estimated_arrival = dateutil.parser.parse(time_estimated_arrival)
 
-                            self.logger.info("estimatedDateTime = {}".format(time_estimated_arrival))
-
                             if time_offset_prev <= time_estimated_arrival <= time_offset_next:
-                                self.logger.info("\nestimatedDateTime is in range time offset!!\n")
                                 if sch_et < time_estimated_arrival:
                                     break
                                 else:
+                                    self.logger.info("\n\n Time Estimated Arrival in range Schedule Time!! GO Inspection!!")
+                                    self.logger.info("Schedule Start time = {}".format(sch_st))
+                                    self.logger.info("Estimated Time = {}".format(time_estimated_arrival))
+                                    self.logger.info("Schedule End time = {}".format(sch_et))
+
                                     calc_et = time_estimated_arrival + timedelta(minutes=self.service_run_time)
+                                    self.logger.info("Calculated End time = {}".format(calc_et))
 
                                     if calc_et < now_time:
                                         self.logger.warning("Current time has passed the service end time. So skip !!!\n")
                                         continue
 
                                     if calc_et >= sch_et:
+                                        self.logger.info("Calculated End Time over passed Schedule End Time!!!\n")
                                         calc_et = sch_et
 
                                     gate = arr["gatenumber"]
@@ -331,7 +332,7 @@ class MyLoop(Loop):
                                         break
 
                                     else:
-                                        self.logger.info("There is no location name match with gate")
+                                        self.logger.info("There is no location name match with gate(Feat. Inspection)")
                                         self.regular_mission_schedule = dict()
 
                     # 방역 모드인 경우, offset을 고려하지 않는다.
@@ -348,8 +349,8 @@ class MyLoop(Loop):
                             elif sch_st <= time_estimated_arrival <= sch_et:
                                 self.logger.info("\n\n Time Estimated Arrival in range Schedule Time!! GO Quarantine!!")
                                 self.logger.info("Schedule Start time = {}".format(sch_st))
-                                self.logger.info("Estimaed Time = {}".format(time_estimated_arrival))
-                                self.logger.info("Scheduel End time = {}".format(sch_et))
+                                self.logger.info("Estimated Time = {}".format(time_estimated_arrival))
+                                self.logger.info("Schedule End time = {}".format(sch_et))
 
                                 if sch["location"] == self.find_location_with_gate(arr["gatenumber"]):
                                     self.logger.info("\n\n Find Location with gate !!! = {}, {}".format(sch["location"], arr["gatenumber"]))
@@ -368,7 +369,7 @@ class MyLoop(Loop):
                                     break
 
                                 else:
-                                    self.logger.info("There is no location name match with gate")
+                                    self.logger.info("There is no location name match with gate(Feat. Quarantine)")
                                     self.regular_mission_schedule = dict()
 
                     # 정기 임무 중 스케줄 시간에 걸린 항공편이 없는 경우                    
@@ -396,10 +397,10 @@ class MyLoop(Loop):
         charging_end_time = None
         call_idle = False
 
-        self.logger.info("@@@@@@@ 현재 시나리오 : ", self.cur_scenario)
+        self.logger.info("@@@@@@@ 현재 시나리오 : ", self.cur_display)
 
         # 시나리오 수행 중이 아닌 console이 띄워진 경우이다.
-        if self.cur_scenario != "inspection" and self.cur_scenario != "charging":
+        if self.cur_display != "inspection" and self.cur_display != "quarantine" and self.cur_display != "charging":
             do_nothing = True
         # inspection, charging과 같은 시나리오 수행 중에서만 스케줄 변경에 대한 행동을 취한다.
         else:
@@ -430,7 +431,7 @@ class MyLoop(Loop):
                 self.logger.info("@@@@@@@ 현 시간이 받아온 스케줄과 문서의 스케줄 안에 동시에 있다.")
 
                 # 현재 점검이고, 받아온 스케줄이 긴급 모드로 인한 충전이라면 충전으로 가야한다.
-                if (in_received_schedule["mode"]["type"] == "I" and in_received_schedule["mode"]["gate"] == "-1" and self.cur_scenario == "inspection"):
+                if (in_received_schedule["mode"]["type"] == "I" and in_received_schedule["mode"]["gate"] == "-1" and (self.cur_display == "inspection" or self.cur_display == "quarantine")):
                     self.logger.info("@@@@@@@ 현재 점검이고, 받아온 스케줄이 긴급 모드로 인한 충전이라면 충전으로 가야한다.")
                     call_idle = True
 
@@ -439,7 +440,7 @@ class MyLoop(Loop):
                     self.logger.info("@@@@@@@ 현재 스케줄이 같다.")
 
                     # 방어 코드 : 만에 하나 현재 상태는 '충전', 스케줄 명령이 '감시'인데 스케줄이 같다고 판별한 경우
-                    if (self.cur_scenario == "charging" and in_received_schedule["mode"]["gate"] != "-1"):
+                    if (self.cur_display == "charging" and in_received_schedule["mode"]["gate"] != "-1"):
                         call_idle = True
                     else:
                         do_nothing = True
@@ -461,20 +462,16 @@ class MyLoop(Loop):
                     # 기존 스케줄과 받아온 스케줄이 현재 점검인 경우.
                     # 끝내면서 어차피 inspection이 idle 호출한다.
                     elif (in_doc_schedule["mode"]["gate"] != "-1") and (in_received_schedule["mode"]["gate"] != "-1"):
-                        self.logger.info("@@@@@@@ 현재 모두  점검 중이다.")
-                        self.logger.info("@@@@@@@ 기존 점검을 마저 끝낸다.")
+                        self.logger.info("@@@@@@@ 현재 모두  점검 중이다.  기존 점검을 마저 끝낸다.")
                         do_nothing = True
 
                     # 기존 스케줄이 점검인데, 받아온 스케줄이 충전이라면
                     elif (in_doc_schedule["mode"]["gate"] != "-1") and (in_received_schedule["mode"]["gate"] == "-1"):
-                        self.logger.info("@@@@@@@ 기존 스케줄이 점검인데, 받아온 스케줄이 충전이다.")
-                        self.logger.info("@@@@@@@ 스케줄 자체는 안 변했고, 도착편이 오프셋을 벗어나 만들 스케줄이 없는 경우이다.")
-                        self.logger.info("@@@@@@@ 기존 점검을 마저 끝낸다.")
+                        self.logger.info("@@@@@@@ 기존 스케줄이 점검인데, 받아온 스케줄이 충전이다. 스케줄 자체는 안 변했고, 도착편이 오프셋을 벗어나 만들 스케줄이 없는 경우이다. 기존 점검을 마저 끝낸다.")
                         do_nothing = True
-                    # 기존 스케줄이 충전인데, 받아온 스케줄이 점검이라면p
+                    # 기존 스케줄이 충전인데, 받아온 스케줄이 점검이라면
                     else:
-                        self.logger.info("@@@@@@@ 기존 스케줄이 충전인데, 받아온 스케줄이 점검인 경우이다.")
-                        self.logger.info("@@@@@@@ IDLE 호출한다.")
+                        self.logger.info("@@@@@@@ 기존 스케줄이 충전인데, 받아온 스케줄이 점검인 경우이다. IDLE 호출한다.")
                         call_idle = True
 
             # 둘 다 스케줄 안에 없다 => 이전 스케줄과 다음 스케줄 사이에 있다. => 이는 곧 충전이다.
@@ -501,8 +498,7 @@ class MyLoop(Loop):
 
             # 받아온 스케줄이 변경된 경우이다.
             else:
-                self.logger.info("@@@@@@@ 어느 하나는 현 시간에 걸리고 다른 것은 걸리지 않는 경우이다.")
-                self.logger.info("@@@@@@@ 이는 스케줄이 바뀐 경우이다!")
+                self.logger.info("@@@@@@@ 어느 하나는 현 시간에 걸리고 다른 것은 걸리지 않는 경우이다. 이는 스케줄이 바뀐 경우이다!")
 
                 # 현재 충전 중인데, 바뀐 스케줄이 충전일 경우 한 번 더 충전하는 것을 생략한다.
                 if ((in_received_schedule != None) and (in_received_schedule["mode"]["gate"] == "-1") and (self.is_charging == True)):
@@ -513,6 +509,7 @@ class MyLoop(Loop):
 
         # 도큐먼트에 받아온 정보 및 그로부터 계산한 스케줄 저장.
         # 때문에, idle이 참일 경우, 이 수정된 문서를 바탕으로 호출할 것이다.
+
         self.save_document("arrival", self.receive_arrivals_data)
         self.save_document("schedule", schedule_list)
 
@@ -536,7 +533,6 @@ class MyLoop(Loop):
             else:
                 self.logger.info("@@@@@@@ call idle & not charging : IDLE이 호출!")
                 self.publish(self.make_node("{namespace}/app_manager/idle"), {})
-
 
 __class = MyLoop
 if __name__ == "__main__":
