@@ -5,7 +5,7 @@ import os
 import signal
 from time import strftime
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 import dateutil.parser
 import requests
 import copy
@@ -54,6 +54,7 @@ class MyLoop(Loop):
         self.immediate_response_data = None
         self.immediate_mission_schedule = dict()
         self.immediate_charging_schedule = dict()
+        self.regular_mission_schedule = dict()
         self.receive_schedules_data = []
         self.receive_arrivals_data = []
         
@@ -201,25 +202,62 @@ class MyLoop(Loop):
         '''
             Check Immediate Charging Service
         '''
-        self.check_immediate_charging_schedule(self.receive_schedules_data)
+        self.check_receive_schedules()
 
         '''
             Refine Scheduler Branch Service
         '''
-        self.scheduler_branch_service()
+        if self.is_low_battery == True:
+            self.publish(self.make_node("{namespace}/app_manager/charging"), {
+                "limit_voltage_level": self.enough_battery,
+                "charging_mode": "low_battery",
+            })
+        else:
+            schedule_list = []
+            if self.is_immediate_mission == True:
+                self.logger.info("Branch Immediate Mission\n\n")
+                schedule_list = [self.immediate_mission_schedule]
 
+            elif self.is_immediate_charging == True:
+                self.logger.info("Branch Immediate Charging\n\n")
+                schedule_list = [self.immediate_charging_schedule]
 
-    def check_immediate_charging_schedule(self, schedules):
-        for sch in schedules:
-            sch_st = datetime.strptime(sch["starttime"], "%Y/%m/%d %H:%M:%S")
-            sch_et = datetime.strptime(sch["endtime"], "%Y/%m/%d %H:%M:%S")
+            else:
+                self.logger.info("Branch Regular Mission\n\n")
+                schedule_list = [self.regular_mission_schedule]
 
-            now_time = datetime.now()
+            self.logger.info("Final Schedule List = {}".format(schedule_list))
+            self.change_module(schedule_list)
+        
+    def check_receive_schedules(self):
+        for sch in self.receive_schedules_data:
+            now_time = datetime.now() # datetime
+            now_time = datetime.strftime(now_time, "%H:%M:%S") # datetime -> string
+            now_time = dateutil.parser.parse(now_time) # string -> datetime
+            
+            sch_st = datetime.strptime(sch["starttime"], "%H:%M:%S") # string -> datetime
+            sch_et = datetime.strptime(sch["endtime"], "%H:%M:%S") # string -> datetime
 
             if sch_et < now_time:
                 continue
+
+            elif now_time < sch_st:
+                mode = {
+                    "location": sch["loc"],
+                    "gate": "-1",
+                    "name": self.service_mode,
+                    "type": "S"
+                }
+                
+                self.regular_mission_schedule["start_time"] = datetime.strftime(sch_st, "%H:%M:%S")
+                self.regular_mission_schedule["end_time"] = datetime.strftime(sch_et, "%H:%M:%S")
+                self.regular_mission_schedule["mode"] = mode
+
             elif sch_st <= now_time <= sch_et:
+                # 긴급 충전인 경우
                 if sch["type"] == "I":
+                    self.is_immediate_charging = True
+
                     mode = {
                         "location": sch["location"],
                         "gate": "-1",
@@ -231,41 +269,256 @@ class MyLoop(Loop):
                     self.immediate_charging_schedule["end_time"] = sch_et.strftime("%H:%M:%S")
                     self.immediate_charging_schedule["mode"] = mode
 
-                    self.is_immediate_charging = True
-                
+                # 정기 임무인 경우
                 else:
                     self.is_immediate_charging = False
+                    self.is_immediate_mission = False
 
-    def scheduler_branch_service(self):
-        '''
-            [우선 순위]
-            1. 배터리가 임계값보다 낮은 경우
-            2. 로봇에서 입력한 긴급 임무(type = 'I')
-            3. 관제에서 입력한 긴급 충전(type = 'I')
-            4. 관제에서 입력한 정기 임무(type = 's')
-        '''
-        if self.is_low_battery == True:
-            self.service_charging()
+                    # 감시 모드인 경우, offset을 고려해준다.
+                    if self.service_mode == "inspection":
+                        time_offset_prev = now_time + timedelta(minutes=self.time_offset_prev)
+                        time_offset_prev = datetime.strftime(time_offset_prev, "%H:%M:%S") # string -> datetimee
+
+                        time_offset_next = now_time + timedelta(minutes=self.time_offset_next)
+                        time_offset_next = datetime.strftime(time_offset_next, "%H:%M:%S") # string -> datetime
+
+                        for arr in self.receive_arrivals_data:
+                            value_time = arr["estimatedDateTime"] # unicode
+                            time_estimated_arrival = "".join([value_time[i] if i % 2 == 0 else value_time[i] + ":" for i in range(len(value_time))]) + "00"
+                            time_estimated_arrival = dateutil.parser.parse(time_estimated_arrival)
+
+                            if time_offset_prev <= time_estimated_arrival <= time_offset_next:
+                                if sch_et < time_estimated_arrival:
+                                    break
+                                else:
+                                    calc_et = time_estimated_arrival + timedelta(minutes=self.service_run_time)
+
+                                    if calc_et < now_time:
+                                        self.logger.warning("Current time has passed the service end time. So skip !!!\n")
+                                        continue
+
+                                    if calc_et >= sch_et:
+                                        calc_et = sch_et
+
+                                    gate = arr["gatenumber"]
+                                    calc_et = datetime.strftime(calc_et, "%H:%M:%S")
+
+                                    if sch["location"] == self.find_location_with_gate(gate):
+                                        mode = {
+                                            "location": sch["loc"],
+                                            "gate": gate,
+                                            "name": self.service_mode,
+                                            "type": "S",
+                                            "calculated_end_time": calc_et
+                                        }
+                                        
+                                        self.regular_mission_schedule["start_time"] = datetime.strftime(sch_st, "%H:%M:%S")
+                                        self.regular_mission_schedule["end_time"] = datetime.strftime(sch_et, "%H:%M:%S")
+                                        self.regular_mission_schedule["mode"] = mode
+
+                                    else:
+                                        self.logger.info("There is no location name match with gate")
+
+                    # 방역 모드인 경우, offset을 고려하지 않는다.
+                    else:
+                        for arr in self.receive_arrivals_data:
+                            value_time = arr["estimatedDateTime"] # unicode
+                            time_estimated_arrival = "".join([value_time[i] if i % 2 == 0 else value_time[i] + ":" for i in range(len(value_time))]) + "00"
+                            time_estimated_arrival = dateutil.parser.parse(time_estimated_arrival)
+
+                            if sch_et < time_estimated_arrival:
+                                break
+                            else:
+                                calc_et = time_estimated_arrival + timedelta(minutes=self.service_run_time)
+
+                                if calc_et < now_time:
+                                    self.logger.warning("Current time has passed the service end time. So skip !!!\n")
+                                    continue
+
+                                if calc_et >= sch_et:
+                                    calc_et = sch_et
+
+                                gate = arr["gatenumber"]
+                                calc_et = datetime.strftime(calc_et, "%H:%M:%S")
+
+                                if sch["location"] == self.find_location_with_gate(gate):
+                                    mode = {
+                                        "location": sch["loc"],
+                                        "gate": gate,
+                                        "name": self.service_mode,
+                                        "type": "S",
+                                        "calculated_end_time": calc_et
+                                    }
+                                    
+                                    self.regular_mission_schedule["start_time"] = datetime.strftime(sch_st, "%H:%M:%S")
+                                    self.regular_mission_schedule["end_time"] = datetime.strftime(sch_et, "%H:%M:%S")
+                                    self.regular_mission_schedule["mode"] = mode
+
+                                else:
+                                    self.logger.info("There is no location name match with gate")
+
+                    # 오프셋에 걸친 항공편이 없는 경우
+                    if self.regular_mission_schedule == dict():
+                        mode = {
+                            "location": sch["loc"],
+                            "gate": "-1",
+                            "name": self.service_mode,
+                            "type": "S",
+                            "calculated_end_time": datetime.strftime(sch_et, "%H:%M:%S")
+                        }
+
+                        self.regular_mission_schedule["start_time"] = datetime.strftime(sch_st, "%H:%M:%S")
+                        self.regular_mission_schedule["end_time"] = datetime.strftime(sch_et, "%H:%M:%S")
+                        self.regular_mission_schedule["mode"] = mode
+
+    def change_module(self, schedule_list):
+        ################ 비교 + schedule 비교, 다르면 모듈 전환 #############################
+        # For Flag Variables
+        do_nothing = False
+        pub_charging = False
+        charging_end_time = None
+        call_idle = False
+
+        self.logger.info("@@@@@@@ 현재 시나리오 : ", self.cur_scenario)
+
+        # 시나리오 수행 중이 아닌 console이 띄워진 경우이다.
+        if self.cur_scenario != "inspection" and self.cur_scenario != "charging":
+            do_nothing = True
+        # inspection, charging과 같은 시나리오 수행 중에서만 스케줄 변경에 대한 행동을 취한다.
         else:
-            if self.is_immediate_mission == True:
-                return self.immediate_mission_schedule
+            in_doc_schedule = None
+            in_received_schedule = None
 
-            elif self.is_immediate_charging == True:
-                return self.immediate_charging_schedule
+            cur_time = datetime.datetime.now()
+
+            # 도큐먼트로부터의 스케줄
+            for schedule in self.schedule_doc:
+                # dateutil.parser.parse에 의해 현 날짜로 년/월/일이 맞춰짐
+                schedule_start_time = dateutil.parser.parse(schedule["start_time"])
+                schedule_end_time = dateutil.parser.parse(schedule["end_time"])
+
+                if (schedule_start_time <= cur_time) and (cur_time <= schedule_end_time):
+                    in_doc_schedule = schedule
+
+            # 받아온 스케줄 리스트로부터의 스케줄
+            for schedule in schedule_list:
+                schedule_start_time = dateutil.parser.parse(schedule["start_time"])
+                schedule_end_time = dateutil.parser.parse(schedule["end_time"])
+
+                if (schedule_start_time <= cur_time and cur_time <= schedule_end_time):
+                    in_received_schedule = schedule
+
+            # 둘 다 스케줄 안에 있다
+            if in_received_schedule != None and in_doc_schedule != None:
+                self.logger.info("@@@@@@@ 현 시간이 받아온 스케줄과 문서의 스케줄 안에 동시에 있다.")
+
+                # 현재 점검이고, 받아온 스케줄이 긴급 모드로 인한 충전이라면 충전으로 가야한다.
+                if (in_received_schedule["mode"]["type"] == "I" and in_received_schedule["mode"]["gate"] == "-1" and self.cur_scenario == "inspection"):
+                    self.logger.info("@@@@@@@ 현재 점검이고, 받아온 스케줄이 긴급 모드로 인한 충전이라면 충전으로 가야한다.")
+                    call_idle = True
+
+                # 긴급 스케줄은 아닌, 정기 스케줄인데 현 스케줄에 변화가 없다.
+                elif in_received_schedule == in_doc_schedule:
+                    self.logger.info("@@@@@@@ 현재 스케줄이 같다.")
+
+                    # 방어 코드 : 만에 하나 현재 상태는 '충전', 스케줄 명령이 '감시'인데 스케줄이 같다고 판별한 경우
+                    if (self.cur_scenario == "charging" and in_received_schedule["mode"]["gate"] != "-1"):
+                        call_idle = True
+                    else:
+                        do_nothing = True
+                # 현 스케줄에 변화가 생겼다.
+                else:
+                    self.logger.info("@@@@@@@ 현재 스케줄이 다르다.")
+                    # 현재 모두 충전 시나리오인가?
+                    if (in_doc_schedule["mode"]["gate"] == "-1") and (in_received_schedule["mode"]["gate"] == "-1"):
+                        self.logger.info("@@@@@@@ 현재 모두 충전 시나리오다.")
+                        # 스케줄 종료 시간에 변화가 있는가?
+                        if (in_received_schedule["end_time"] != in_doc_schedule["end_time"]):
+                            self.logger.info("@@@@@@@ 그리고 스케줄 종료 시간에 변화가 있는 것이다.")
+
+                            pub_charging = True
+                            charging_end_time = dateutil.parser.parse(in_received_schedule["end_time"])
+                        else:
+                            do_nothing = True
+
+                    # 기존 스케줄과 받아온 스케줄이 현재 점검인 경우.
+                    # 끝내면서 어차피 inspection이 idle 호출한다.
+                    elif (in_doc_schedule["mode"]["gate"] != "-1") and (in_received_schedule["mode"]["gate"] != "-1"):
+                        self.logger.info("@@@@@@@ 현재 모두  점검 중이다.")
+                        self.logger.info("@@@@@@@ 기존 점검을 마저 끝낸다.")
+                        do_nothing = True
+
+                    # 기존 스케줄이 점검인데, 받아온 스케줄이 충전이라면
+                    elif (in_doc_schedule["mode"]["gate"] != "-1") and (in_received_schedule["mode"]["gate"] == "-1"):
+                        self.logger.info("@@@@@@@ 기존 스케줄이 점검인데, 받아온 스케줄이 충전이다.")
+                        self.logger.info("@@@@@@@ 스케줄 자체는 안 변했고, 도착편이 오프셋을 벗어나 만들 스케줄이 없는 경우이다.")
+                        self.logger.info("@@@@@@@ 기존 점검을 마저 끝낸다.")
+                        do_nothing = True
+                    # 기존 스케줄이 충전인데, 받아온 스케줄이 점검이라면p
+                    else:
+                        self.logger.info("@@@@@@@ 기존 스케줄이 충전인데, 받아온 스케줄이 점검인 경우이다.")
+                        self.logger.info("@@@@@@@ IDLE 호출한다.")
+                        call_idle = True
+
+            # 둘 다 스케줄 안에 없다 => 이전 스케줄과 다음 스케줄 사이에 있다. => 이는 곧 충전이다.
+            elif in_received_schedule == None and in_doc_schedule == None:
+                self.logger.info("@@@@@@@ 현 시간이 받아온 스케줄과 문서의 스케줄 안에 동시에 없다.")
+
+                if self.is_charging == False:
+                    self.logger.info("@@@@@@@ 현재 점검 중이면 충전으로 전환한다.")
+                    call_idle = True
+                else:
+                    # end_time 계산 => 현 시간부로 다음 스케줄 시작 전까지 충전
+                    # 만일 새로 받아온 스케줄 리스트에서 다음 스케줄이 없다면, 23:59:59로 설정
+                    for schedule in schedule_list:
+                        schedule_start_time = dateutil.parser.parse(schedule["start_time"])
+
+                        if cur_time < schedule_start_time:
+                            charging_end_time = schedule_start_time
+                            break
+
+                    if charging_end_time is None:
+                        charging_end_time = dateutil.parser.parse("23:59:59")
+
+                    pub_charging = True
+
+            # 받아온 스케줄이 변경된 경우이다.
             else:
-                schedule_list = self.extract_schedule_list(self.receive_schedules_data, self.receive_arrivals_data)
+                self.logger.info("@@@@@@@ 어느 하나는 현 시간에 걸리고 다른 것은 걸리지 않는 경우이다.")
+                self.logger.info("@@@@@@@ 이는 스케줄이 바뀐 경우이다!")
 
-            
-    def service_charging(self):
-        self.publish(self.make_node("{namespace}/app_manager/charging"), {
-            "limit_voltage_level": self.enough_battery,
-            "charging_mode": "low_battery",
-        })
+                # 현재 충전 중인데, 바뀐 스케줄이 충전일 경우 한 번 더 충전하는 것을 생략한다.
+                if ((in_received_schedule != None) and (in_received_schedule["mode"]["gate"] == "-1") and (self.is_charging == True)):
+                    charging_end_time = dateutil.parser.parse(in_received_schedule["end_time"])
+                    pub_charging = True
+                else:
+                    call_idle = True
 
+        # 도큐먼트에 받아온 정보 및 그로부터 계산한 스케줄 저장.
+        # 때문에, idle이 참일 경우, 이 수정된 문서를 바탕으로 호출할 것이다.
+        self.save_document("arrival", receive_arrivals)
+        self.save_document("schedule", schedule_list)
 
-    def extract_schedule_list(self, sch_data, arr_data):
-        
-    
+        if do_nothing:
+            self.logger.info("@@@@@@@ do nothing : 아무 것도 안 한다!")
+            pass
+        elif pub_charging:
+            self.logger.info("@@@@@@@ pub charging : 충전 시나리오에 end time 던지기!")
+            self.logger.info("@@@@@@@ charging_end_time : ", charging_end_time)
+            self.publish(self.make_node("{namespace}/charging/event/end_time"), {
+                "end_time": charging_end_time.isoformat()
+            })
+        elif call_idle:
+            # docking 이면 빼고 해야됨 => 도킹 중인지는 charging 여부로 판단하지 말기
+            if self.is_charging == True:
+                self.logger.info("@@@@@@@ call idle & charging : IDLE이 호출돼야 하는데, 현재 도킹 중이다!")
+                self.logger.info("@@@@@@@ 따라서 언도킹부터 진행한다.")
+                self.publish(self.make_node("{namespace}/app_manager/undocking"), {
+                    "type": "next_idle"
+                })
+            else:
+                self.logger.info("@@@@@@@ call idle & not charging : IDLE이 호출!")
+                self.publish(self.make_node("{namespace}/app_manager/idle"), {})
 
 
 __class = MyLoop
