@@ -1,4 +1,4 @@
-MODE: "Q"
+MODE: "inspection"
 SPEED: 0.2
 DISABLE_GLOBAL_PATH_PLANNING: false
 TRY_LPT_COUNT: 5
