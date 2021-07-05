@@ -1,15 +1,10 @@
-#!/usr/bin/python
-# -*- encoding: utf-8 coding: utf8 -*-#
-
 import os
 import signal
-from time import strftime
 import traceback
 from datetime import datetime, timedelta
 import dateutil.parser
-import requests
 import copy
-from urlparse import urlsplit, parse_qs
+from urlparse import urlsplit
 
 from rade.modulebase import Loop, RosWrapper
 from rade.common import ResponseInfo
@@ -22,9 +17,9 @@ class MyLoop(Loop):
         '''
             Parse info from preference.yaml
         '''
-        self.preference_doc = self.load_document("preferences")
+        self.preferences_doc = self.load_document("preferences")
         self.low_battery = self.preferences_doc["LOW_BATTERY"]
-        self.service_mode = self.preference_doc["MODE"]
+        self.service_mode = self.preferences_doc["MODE"]
 
         '''
             Erase exist schedule
@@ -52,9 +47,11 @@ class MyLoop(Loop):
         self.master_poi_doc = None
         self.schedule_doc = None
         self.immediate_response_data = None
+
         self.immediate_mission_schedule = dict()
         self.immediate_charging_schedule = dict()
         self.regular_mission_schedule = dict()
+        
         self.receive_schedules_data = []
         self.receive_arrivals_data = []
         
@@ -182,12 +179,12 @@ class MyLoop(Loop):
     
         self.master_poi_doc = self.load_document("master_poi")
         self.schedule_doc = self.load_document("schedule")
-        self.preference_doc = self.load_document("preferences")
+        self.preferences_doc = self.load_document("preferences")
 
         self.service_run_time = self.preferences_doc["SERVICE_RUNTIME"]
         self.time_offset_prev = self.preferences_doc["TIME_OFFSET_PREV"]
         self.time_offset_next = self.preferences_doc["TIME_OFFSET_NEXT"]
-        self.service_mode = self.preference_doc["MODE"]
+        self.service_mode = self.preferences_doc["MODE"]
         self.low_battery = self.preferences_doc["LOW_BATTERY"]
 
         '''
@@ -202,7 +199,13 @@ class MyLoop(Loop):
         '''
             Check Immediate Charging Service
         '''
+
         self.check_receive_schedules()
+        self.logger.info("Check Schedule Finish!!")
+
+        self.logger.info("\n\n Immediate Mission Schedule = {}\n".format(self.immediate_mission_schedule))
+        self.logger.info("\n Immediate Charging Schedule = {}\n".format(self.immediate_charging_schedule))
+        self.logger.info("\n Regular Mission Schedule = {}\n\n".format(self.regular_mission_schedule))
 
         '''
             Refine Scheduler Branch Service
@@ -227,7 +230,7 @@ class MyLoop(Loop):
                 schedule_list = [self.regular_mission_schedule]
 
             self.logger.info("Final Schedule List = {}".format(schedule_list))
-            self.change_module(schedule_list)
+            # self.change_module(schedule_list)
         
     def check_receive_schedules(self):
         for sch in self.receive_schedules_data:
@@ -235,15 +238,26 @@ class MyLoop(Loop):
             now_time = datetime.strftime(now_time, "%H:%M:%S") # datetime -> string
             now_time = dateutil.parser.parse(now_time) # string -> datetime
             
-            sch_st = datetime.strptime(sch["starttime"], "%H:%M:%S") # string -> datetime
-            sch_et = datetime.strptime(sch["endtime"], "%H:%M:%S") # string -> datetime
+            # self.logger.info("schedule_start_time = {}".format(sch["starttime"]))
+            # self.logger.info("schedule_end_time = {}".format(sch["endtime"]))
+
+            # sch_st = datetime.strptime(sch["starttime"].split(" ")[1], "%H:%M:%S") # string -> datetime
+            sch_st = dateutil.parser.parse(sch["starttime"].split(" ")[1])
+            # sch_et = datetime.strptime(sch["endtime"].split(" ")[1], "%H:%M:%S") # string -> datetime
+            sch_et = dateutil.parser.parse(sch["endtime"].split(" ")[1])
+
+            # self.logger.info("now_time = {}".format(now_time))
+            # self.logger.info("schedule_start_time = {}".format(sch_st))
+            # self.logger.info("schedule_end_time = {}".format(sch_et))
 
             if sch_et < now_time:
+                self.logger.info("\ncurrent time >>>>> schedule end time")
                 continue
 
             elif now_time < sch_st:
+                self.logger.info("\ncurrent time <<<<< schedule end time")
                 mode = {
-                    "location": sch["loc"],
+                    "location": sch["location"],
                     "gate": "-1",
                     "name": self.service_mode,
                     "type": "S"
@@ -252,8 +266,10 @@ class MyLoop(Loop):
                 self.regular_mission_schedule["start_time"] = datetime.strftime(sch_st, "%H:%M:%S")
                 self.regular_mission_schedule["end_time"] = datetime.strftime(sch_et, "%H:%M:%S")
                 self.regular_mission_schedule["mode"] = mode
+                break
 
             elif sch_st <= now_time <= sch_et:
+                self.logger.info("\ncurrent time is in range scheudle time\n")
                 # 긴급 충전인 경우
                 if sch["type"] == "I":
                     self.is_immediate_charging = True
@@ -268,6 +284,7 @@ class MyLoop(Loop):
                     self.immediate_charging_schedule["start_time"] = sch_st.strftime("%H:%M:%S")
                     self.immediate_charging_schedule["end_time"] = sch_et.strftime("%H:%M:%S")
                     self.immediate_charging_schedule["mode"] = mode
+                    break
 
                 # 정기 임무인 경우
                 else:
@@ -276,18 +293,26 @@ class MyLoop(Loop):
 
                     # 감시 모드인 경우, offset을 고려해준다.
                     if self.service_mode == "inspection":
+                        self.logger.info("This is Inspection Scheduler!!!!")
                         time_offset_prev = now_time + timedelta(minutes=self.time_offset_prev)
                         time_offset_prev = datetime.strftime(time_offset_prev, "%H:%M:%S") # string -> datetimee
 
                         time_offset_next = now_time + timedelta(minutes=self.time_offset_next)
                         time_offset_next = datetime.strftime(time_offset_next, "%H:%M:%S") # string -> datetime
 
+
+                        self.logger.info("time_offset_prev = {}".format(time_offset_prev))
+                        self.logger.info("time_offset_next = {}".format(time_offset_next))
+
                         for arr in self.receive_arrivals_data:
                             value_time = arr["estimatedDateTime"] # unicode
                             time_estimated_arrival = "".join([value_time[i] if i % 2 == 0 else value_time[i] + ":" for i in range(len(value_time))]) + "00"
                             time_estimated_arrival = dateutil.parser.parse(time_estimated_arrival)
 
+                            self.logger.info("estimatedDateTime = {}".format(time_estimated_arrival))
+
                             if time_offset_prev <= time_estimated_arrival <= time_offset_next:
+                                self.logger.info("\nestimatedDateTime is in range time offset!!\n")
                                 if sch_et < time_estimated_arrival:
                                     break
                                 else:
@@ -305,7 +330,7 @@ class MyLoop(Loop):
 
                                     if sch["location"] == self.find_location_with_gate(gate):
                                         mode = {
-                                            "location": sch["loc"],
+                                            "location": sch["location"],
                                             "gate": gate,
                                             "name": self.service_mode,
                                             "type": "S",
@@ -315,35 +340,40 @@ class MyLoop(Loop):
                                         self.regular_mission_schedule["start_time"] = datetime.strftime(sch_st, "%H:%M:%S")
                                         self.regular_mission_schedule["end_time"] = datetime.strftime(sch_et, "%H:%M:%S")
                                         self.regular_mission_schedule["mode"] = mode
+                                        break
 
                                     else:
                                         self.logger.info("There is no location name match with gate")
+                                        self.regular_mission_schedule = dict()
 
                     # 방역 모드인 경우, offset을 고려하지 않는다.
                     else:
+                        self.logger.info("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ This is Quarantine Scheduler!!!!")
                         for arr in self.receive_arrivals_data:
                             value_time = arr["estimatedDateTime"] # unicode
                             time_estimated_arrival = "".join([value_time[i] if i % 2 == 0 else value_time[i] + ":" for i in range(len(value_time))]) + "00"
                             time_estimated_arrival = dateutil.parser.parse(time_estimated_arrival)
 
+                            # self.logger.info("\n\n now time = {}\n".format(now_time))
+                            # self.logger.info("\n\n time estimated arrival = {}\n".format(time_estimated_arrival))
+ 
                             if sch_et < time_estimated_arrival:
                                 break
-                            else:
-                                calc_et = time_estimated_arrival + timedelta(minutes=self.service_run_time)
-
-                                if calc_et < now_time:
-                                    self.logger.warning("Current time has passed the service end time. So skip !!!\n")
-                                    continue
-
-                                if calc_et >= sch_et:
-                                    calc_et = sch_et
+                            elif sch_st <= time_estimated_arrival <= sch_et:
+                                self.logger.info("\n\n Time Estimated Arrival in range Schedule Time!! GO Quarantine!!")
+                                self.logger.info("Schedule Start time = {}".format(sch_st))
+                                self.logger.info("Scheduel End time = {}".format(sch_et))
+                                calc_et = sch_et
 
                                 gate = arr["gatenumber"]
-                                calc_et = datetime.strftime(calc_et, "%H:%M:%S")
+                                # calc_et = datetime.strftime(calc_et, "%H:%M:%S")
+
+                                self.logger.info("Gate = {}".format(gate))
 
                                 if sch["location"] == self.find_location_with_gate(gate):
+                                    self.logger.info("Find Location with gate !!! = {}".format(sch["location"]))
                                     mode = {
-                                        "location": sch["loc"],
+                                        "location": sch["location"],
                                         "gate": gate,
                                         "name": self.service_mode,
                                         "type": "S",
@@ -353,14 +383,17 @@ class MyLoop(Loop):
                                     self.regular_mission_schedule["start_time"] = datetime.strftime(sch_st, "%H:%M:%S")
                                     self.regular_mission_schedule["end_time"] = datetime.strftime(sch_et, "%H:%M:%S")
                                     self.regular_mission_schedule["mode"] = mode
+                                    break
 
                                 else:
                                     self.logger.info("There is no location name match with gate")
+                                    self.regular_mission_schedule = dict()
 
-                    # 오프셋에 걸친 항공편이 없는 경우
+                    # 오프셋에 걸친 항공편이 없는 경우                    
                     if self.regular_mission_schedule == dict():
+                        self.logger.info("there is no Schedule in time")
                         mode = {
-                            "location": sch["loc"],
+                            "location": sch["location"],
                             "gate": "-1",
                             "name": self.service_mode,
                             "type": "S",
@@ -370,6 +403,8 @@ class MyLoop(Loop):
                         self.regular_mission_schedule["start_time"] = datetime.strftime(sch_st, "%H:%M:%S")
                         self.regular_mission_schedule["end_time"] = datetime.strftime(sch_et, "%H:%M:%S")
                         self.regular_mission_schedule["mode"] = mode
+
+                    break
 
     def change_module(self, schedule_list):
         ################ 비교 + schedule 비교, 다르면 모듈 전환 #############################
@@ -496,7 +531,7 @@ class MyLoop(Loop):
 
         # 도큐먼트에 받아온 정보 및 그로부터 계산한 스케줄 저장.
         # 때문에, idle이 참일 경우, 이 수정된 문서를 바탕으로 호출할 것이다.
-        self.save_document("arrival", receive_arrivals)
+        self.save_document("arrival", self.receive_arrivals_data)
         self.save_document("schedule", schedule_list)
 
         if do_nothing:
