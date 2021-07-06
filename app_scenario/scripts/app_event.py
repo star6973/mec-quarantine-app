@@ -81,7 +81,7 @@ class MyLoop(Loop):
 
         except Exception as e:
             self.start_time = self.now_time
-            self.end_time = dateutil.parser.parse("23:00:00")
+            self.end_time = dateutil.parser.parse("23:59:59")
         
         '''
             1. inspection

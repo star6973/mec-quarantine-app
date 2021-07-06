@@ -396,10 +396,11 @@ class MyLoop(Loop):
         '''
             현재 상태 관리 변수
             0: 변화 없음
-            1: 충전 서비스로 바꾸기
-            2: 임무 서비스로 바꾸기
+            1: 충전 스케줄 바꾸기
+            2: event 호출하기
         '''
         schedule_status = 0
+        change_charging_end_time = 0
 
         self.logger.info("Current Service Display: {}".format(self.cur_display))
 
@@ -408,12 +409,12 @@ class MyLoop(Loop):
             1. 로컬 = [], 관제 = []                 # 현재 시간이 이전 스케줄과 다음 스케줄 사이에 있는 경우, status = 1
             2. 로컬 != [], 관제 != []               # 현재 시간이 스케줄 범위 내에 있는 경우
                 2-1. 로컬 == 관제                   # status = 0
-                2-2. 로컬 != 관제                   # 조금이라도 다른 경우임
+                2-2. 로컬 != 관제
                     2-2-1. 로컬(임무), 관제(임무)    # status = 0
                     2-2-2. 로컬(충전), 관제(충전)    # local_schedule_end_time = agent_schedule_end_time if local_schedule_end_time != agent_schedule_end_time else status = 0
                     2-2-3. 로컬(임무), 관제(충전)    # status = 2 if agent_schedule == "I" else status = 0
-                    2-2-4. 로컬(충전), 관제(임무)    # status = 1
-            3. 나머지 예외 상황                      # 
+                    2-2-4. 로컬(충전), 관제(임무)    # status = 2
+            3. 나머지 예외 상황
         '''
         if self.cur_display not in ["charging", "inspection", "quarantine"]:
             schedule_status = 0
@@ -441,12 +442,72 @@ class MyLoop(Loop):
             self.logger.info("@@@@@@@@ 현재 시간 범위 내에 있는 관제 스케줄 = {}\n\n".format(agent_schedule))
 
             if local_schedule == [] and agent_schedule == []:
-                pass
+                self.logger.info("\nLocal Schedule is Empty. Agent Schedule is Empty.\n")
+
+                if self.is_charging == False:
+                    schedule_status = 2
 
             elif local_schedule != [] and agent_schedule != []:
-                pass
+                self.logger.info("\nLocal Schedule is not Empty. Agent Schedule is not Empty.\n")
+                
+                loc_service = local_schedule["mode"]["gate"]
+                loc_end_time = local_schedule["end_time"]
+
+                agent_service = agent_schedule["mode"]["gate"]
+                agent_end_time = agent_schedule["end_time"]
+                agent_type = agent_schedule["mode"]["type"]
+
+                if local_schedule == agent_schedule:
+                    schedule_status = 0
+
+                    '''
+                        방어 코드(왜 필요한지 모르겠음, 일단 냅두자)
+                        if self.cur_display == "charging" and agent_service != "-1":
+                            schedule_status = 2
+                        else:
+                            schedule_status = 0
+                    '''
+
+                else:
+                    # 로컬(임무), 관제(임무)
+                    if loc_service != "-1" and agent_service != "-1":
+                        schedule_status = 0
+
+                    # 로컬(충전), 관제(충전)
+                    elif loc_service == "-1" and agent_service == "-1":
+                        # 충전 end_time이 서로 다른 경우, 관제 end_time으로 업데이트
+                        if loc_end_time != agent_end_time:
+                            change_charging_end_time = dateutil.parser.parse(agent_end_time)
+                            schedule_status = 1
+                        else:
+                            schedule_status = 0
+                    
+                    # 로컬(임무), 관제(충전)
+                    elif loc_service != "-1" and agent_service == "-1":
+                        # 관제에서 긴급 충전 명령을 보낸 경우
+                        if agent_type == "I":
+                            schedule_status = 2
+                        else:
+                            schedule_status = 0
+                    
+                    # 로컬(충전), 관제(임무)
+                    else:
+                        schedule_status = 2
+
+            elif local_schedule == [] and agent_schedule != []:
+                self.logger.info("\nLocal Schedule is Empty. Agent Schedule is not Empty.\n")
+
+                agent_service = agent_schedule["mode"]["gate"]
+                agent_end_time = agent_schedule["end_time"]
+                
+                if self.is_charging == True and agent_service == "-1":
+                    change_charging_end_time = dateutil.parser.parse(agent_end_time)
+                    schedule_status = 1
+                else:
+                    schedule_status = 2
 
             else:
+                self.logger.info("\nLocal Schedule is not Empty. Agent Schedule is Empty.\n")
                 pass
         
         self.save_document("arrival", self.receive_arrivals_data)
@@ -454,16 +515,23 @@ class MyLoop(Loop):
 
         if schedule_status == 0:
             self.logger.info("Status == 0, No Change")
+
             pass
         
         elif schedule_status == 1:
             self.logger.info("Status == 1, Change Charging Service")
-            pass
+
+            self.publish(self.make_node("{namespace}/charging/event/end_time"), {
+                "end_time": change_charging_end_time.isoformat()
+            })
 
         elif schedule_status == 2:
             self.logger.info("Status == 2, Change Mission Service")
-            pass
 
+            if self.is_charging == True:
+                self.publish(self.make_node("{namespace}/app_manager/undocking"), {"type": "next_idle"})
+            else:
+                self.publish(self.make_node("{namespace}/app_manager/idle"), {})
 
 __class = MyLoop
 if __name__ == "__main__":
