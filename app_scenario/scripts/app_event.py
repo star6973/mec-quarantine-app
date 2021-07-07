@@ -11,6 +11,9 @@ from rade.modulebase import Loop, RosWrapper
 from rade.common import ResponseInfo
 from rade.utils import *
 
+SERVICE_INSPECTION = "inspection"
+SERVICE_QUARANTINE = "quarantine"
+
 class MyLoop(Loop):
     def on_create(self, event):
         return ResponseInfo()
@@ -57,62 +60,55 @@ class MyLoop(Loop):
                 sch_et = dateutil.parser.parse(schedule["end_time"])
                 sch_md = schedule["mode"]
 
-                self.gate_name = sch_md["gate"]
-                self.location_name = sch_md["location"]
-                self.calc_end_time = dateutil.parser.parse(sch_md["calculated_end_time"])
-                self.mode_name = sch_md["name"]
+                if sch_md == SERVICE_INSPECTION:
+                    self.gate_name = sch_md["gate"]
+                    self.location_name = sch_md["location"]
+                    self.calc_end_time = dateutil.parser.parse(sch_md["calculated_end_time"])
+                    self.mode_name = sch_md["name"]
+                else:
+                    self.location_name = sch_md["location"]
+                    self.mode_name = sch_md["name"]
 
                 if sch_st <= self.now_time <= sch_et:
-                    if self.mode_name == "inspection" and self.gate_name != "-1" and self.now_time < self.calc_end_time:
+                    self.logger.info("\n ########### [IDLE] Start Time <= Now Time <= End Time!! ########### \n")
+                    if self.mode_name == SERVICE_INSPECTION and self.gate_name != "-1" and self.now_time < self.calc_end_time:
                         self.start_time = self.now_time
                         self.end_time = self.calc_end_time
+
+                    elif self.mode_name == SERVICE_QUARANTINE and self.location_name != "-1" and self.now_time < sch_et:
+                        self.start_time = self.now_time
+                        self.end_time = sch_et
                     
                     else:
                         self.start_time = self.now_time
                         self.end_time = sch_et
 
                 elif self.now_time < sch_st:
+                    self.logger.info("\n ########### [IDLE] Now Time <= Start Time!! ########### \n")
                     self.start_time = self.now_time
                     self.end_time = sch_st
 
             else:
                 self.start_time = self.now_time
-                self.end_time = dateutil.parser.parse("23:00:00")
+                self.end_time = dateutil.parser.parse("23:50:00")
 
         except Exception as e:
             self.start_time = self.now_time
-            self.end_time = dateutil.parser.parse("23:59:59")
+            self.end_time = dateutil.parser.parse("23:50:00")
         
-        '''
-            1. inspection
-            2. quarantine
-            3. charging
-        '''
-        if (self.gate_name != None and self.gate_name != "-1") and self.mode_name == "inspection":
-            self.logger.info("\nStart Inspection!! (Feat. IDLE)\n")
+        self.logger.info("\n\n ================ DATA ================ \n\n")
+        self.logger.info("Mode Name = {}\n".format(self.mode_name))
+        self.logger.info("Start Time = {}\n".format(self.start_time))
+        self.logger.info("End Time = {}\n".format(self.end_time))
+        self.logger.info("Calc End Time = {}\n".format(self.calc_end_time))        
+        self.logger.info("Gate Name = {}\n".format(self.gate_name))
+        self.logger.info("Location Name = {}\n".format(self.location_name))
 
-            self.publish(
-                self.make_node("{namespace}/app_manager/inspection"),
-                {
-                    "end_time": self.end_time.isoformat(),
-                    "gate": self.gate_name,
-                    "location": self.location_name
-                },
-            )
+        if self.start_time == None and self.end_time == None:
+            self.start_time = self.now_time
+            self.end_time = dateutil.parser.parse("23:00:00")
 
-        elif (self.gate_name != None and self.gate_name != "-1") and self.mode_name == "quarantine":
-            self.logger.info("\nStart Quarantine!! (Feat. IDLE)\n")
-
-            self.publish(
-                self.make_node("{namespace}/app_manager/quarantine"),
-                {
-                    "end_time": self.end_time.isoformat(),
-                    "location": self.location_name
-                },
-            )
-
-        else:
-            self.logger.info("\nStart Charging!! (Feat. IDLE)\n")
+            self.logger.info("\n ########### Start Time = [] and End Time = [], Start Charging!! (Feat. IDLE) ########### \n")
 
             self.publish(
                 self.make_node("{namespace}/app_manager/charging"),
@@ -122,6 +118,47 @@ class MyLoop(Loop):
                     "charging_mode": "charging",
                 },
             )
+
+        else:
+            '''
+                1. inspection
+                2. quarantine
+                3. charging
+            '''
+            if self.mode_name == SERVICE_INSPECTION and self.gate_name != None and self.gate_name != "-1":
+                self.logger.info("\n ########### Start Inspection!! (Feat. IDLE) ########### \n")
+
+                self.publish(
+                    self.make_node("{namespace}/app_manager/inspection"),
+                    {
+                        "end_time": self.end_time.isoformat(),
+                        "gate": self.gate_name,
+                        "location": self.location_name
+                    },
+                )
+
+            elif self.mode_name == SERVICE_QUARANTINE and self.location_name != None and self.location_name != "-1":
+                self.logger.info("\n ########### Start Quarantine!! (Feat. IDLE) ########### \n")
+
+                self.publish(
+                    self.make_node("{namespace}/app_manager/quarantine"),
+                    {
+                        "end_time": self.end_time.isoformat(),
+                        "location": self.location_name
+                    },
+                )
+
+            else:
+                self.logger.info("\n ########### Start Charging!! (Feat. IDLE) ########### \n")
+
+                self.publish(
+                    self.make_node("{namespace}/app_manager/charging"),
+                    {
+                        "start_time": self.start_time.isoformat(),
+                        "end_time": self.end_time.isoformat(),
+                        "charging_mode": "charging",
+                    },
+                )
 
 __class = MyLoop
 
