@@ -1,0 +1,19 @@
+html(ng-app="RobotUI")
+    head
+        title RobotUI Face
+        include ./header.pug
+
+        script(src='./contents/lib/jsmpeg.min.js')
+        script(src='./contents/lib/lottie/lottie.js')
+        link(rel="stylesheet" href="./contents/css/quarantine.css")
+        script(src='./contents/js/quarantine.js')
+
+    body(data-ng-controller="BodyCtrl")
+        #quarantine_move(ng-show="quarantine_state == 'moving'")
+            #title.title_text_style {{getLang("TEXT/MOVE/MOVE_TITLE")}}
+            #title_sub.title_sub_text_style {{getLang("TEXT/MOVE/MOVE_SUB_TITLE")}}
+            #quarantine_mv_lottie
+
+        #quarantine(ng-show="quarantine_state == 'quarantine'")
+            .figure
+                img#protect_img
