@@ -1,0 +1,11 @@
+SERVER_URL: https://172.29.169.50:8443
+SERVER_AUTHKEY: b199cf75-1751-11eb-83f9-0800278d5740
+SERVER_CONTENT_TYPE: application/json;charset=UTF-8
+SERVER_REQUEST_CYCLE_TIME: 60
+
+# GET APIS
+GET_SCHEDULE_API: /restapi/robot/v1/schedule
+GET_ARRIVAL_API: /restapi/robot/v1/arrival
+
+# POST APIS
+POST_REGISTER_API: /restapi/robot/v1/register
