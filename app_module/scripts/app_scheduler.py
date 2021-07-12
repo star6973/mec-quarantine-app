@@ -18,22 +18,32 @@ SERVICE_QUARANTINE = "quarantine"
 
 class MyLoop(Loop):
     def on_create(self, event):
-        """ Parse info from preference.yaml """
+        '''
+            Parse info from preference.yaml
+        '''
         self.preferences_doc = self.load_document("preferences")
         self.low_battery = self.preferences_doc["LOW_BATTERY"]
         self.service_mode = self.preferences_doc["MODE"]
 
-        """ Parse info from quarantine_location.yaml """
+        '''
+            Parse info from quarantine_location.yaml
+        '''
         self.qa_loc_doc = self.load_document("quarantine_location")
 
-        """ Erase exist schedule """
+        '''
+            Erase exist schedule
+        '''
         self.save_document("schedule", [])
 
-        """ Flags for running the service """
+        '''
+            Flags for running the service
+        '''
         self.is_charging = False
         self.is_low_battery = False
         
-        """ Flags for others """
+        '''
+            Flags for others
+        '''
         self.cur_display = "app_console"
         self.cur_battery = 100
         self.enough_battery = 100
@@ -234,7 +244,9 @@ class MyLoop(Loop):
         self.receive_arrivals_data = copy.deepcopy(tmp_arrivals_data)
         del tmp_arrivals_data
 
-        """ Refine required data """
+        '''
+            Refine required data
+        '''
         self.receive_schedules_data = sorted(self.receive_schedules_data, key=lambda x: x["starttime"])
         self.receive_arrivals_data = sorted(self.receive_arrivals_data, key=lambda x: x["estimatedDateTime"])
     
@@ -265,14 +277,18 @@ class MyLoop(Loop):
         else:
             self.logger.error("\n\n <<<<<<<<<< [Received Schedule] You entered the wrong service mode name >>>>>>>>>> \n\n")
 
-        """ Publish changed enough battery value to Charing Module """
+        '''
+            Publish changed enough battery value to Charing Module
+        '''
         if self.enough_battery != self.preferences_doc["ENOUGH_BATTERY"]:
             self.enough_battery = self.preferences_doc["ENOUGH_BATTERY"]
             self.publish(self.make_node("{namespace}/charging/event/limit_voltage_level"), {
                 "limit_voltage_level": self.enough_battery
             })
 
-        """ Check receive schedule and extract valid schedule(1. Immediate Mission 2. Immediate Charging 3. Regular Mission) """
+        '''
+            Check receive schedule and extract valid schedule(1. Immediate Mission 2. Immediate Charging 3. Regular Mission)
+        '''
         self.check_receive_schedules()
 
         self.logger.info("\n\n\n ================== [스케줄 결과 데이터] ================== \n")
@@ -280,7 +296,7 @@ class MyLoop(Loop):
         self.logger.info("\n Immediate Charging Schedule = {}\n\n".format(self.immediate_charging_schedule))
         self.logger.info("\n Regular Mission Schedule = {}\n\n\n".format(self.regular_mission_schedule))
 
-        """ 
+        ''' 
             Refine Scheduler Branch Service 
         
             < 우선 순위 >
@@ -288,7 +304,7 @@ class MyLoop(Loop):
             2. Immediate Mission
             3. Immediate Charging
             4. Regular Mission
-        """
+        '''
         if self.is_low_battery == True:
             self.publish(self.make_node("{namespace}/app_manager/charging"), {
                 "limit_voltage_level": self.enough_battery,
@@ -311,7 +327,9 @@ class MyLoop(Loop):
 
                 self.valid_master_schedule = [self.regular_mission_schedule]
 
-            """ Branch Service Mode """
+            '''
+                Branch Service Mode
+            '''
             self.change_service_module()
         
     def check_receive_schedules(self):
@@ -358,7 +376,7 @@ class MyLoop(Loop):
             end_time = self.immediate_charging_schedule["end_time"]
             end_time = datetime.strptime(end_time, "%H:%M:%S") # string -> datetime
 
-            """ 긴급 충전은 우선 순위가 가장 높기 때문에 무조건 설정해준 end_time까지 유지한다. """
+            # 긴급 충전은 우선 순위가 가장 높기 때문에 무조건 설정해준 end_time까지 유지한다.
             if now_time < end_time:
                 # 긴급 충전을 중간에 취소했으나, 긴급 충전 스케줄이 미처 삭제되지 않은 경우
                 if self.cur_display == "console":
@@ -551,7 +569,7 @@ class MyLoop(Loop):
             else:
                 self.logger.error("\n\n <<<<<<<<<< [Regular Mission Schedule] You entered the wrong service mode name >>>>>>>>>> \n\n")
     
-    """ local에서 저장되어 있는 schedule.yaml 파일(현재 진행 중인 서비스)과 관제에서 받아온 valid_master_schedule을 비교하여 서비스를 바꿔주는 function """
+    # local에서 저장되어 있는 schedule.yaml 파일(현재 진행 중인 서비스)과 관제에서 받아온 valid_master_schedule을 비교하여 서비스를 바꿔주는 function
     def change_service_module(self):
         self.logger.info("\n\n <<<<<<<<<< [Step 5] 서비스 모드 변환 시작!!! >>>>>>>>>> \n")
 
