@@ -5,29 +5,28 @@ import os
 import signal
 import traceback
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 import dateutil.parser
 import urllib
-
 from rade.modulebase import Loop, RosWrapper
 from rade.common import ResponseInfo
 from rade.utils import *
-
 from geometry_msgs.msg import Point, Pose
 from workerbee_navigation.msg import MoveToActionGoal
 from workerbee_msgs.msg import ActionState
 from workerbee_platform_msgs.msg import MoveToDriverState
 from sero_actions.msg import *
+from hri_msgs.msg import FaceDetectAndTrackActionGoal
+
+FACE_TRACK_NEAREST_FACE = "look_nearest_face"
 
 class MyLoop(Loop):
     def on_create(self, event):
         self.add_listener(self.make_node("{namespace}/quarantine/ui_ready"), self.on_front_ui_ready)
-        # self.add_listener(self.make_node("{namespace}/quarantine/ui_finish"), self.on_front_ui_finish)
 
         return ResponseInfo()
     
     def on_resume(self, event):
-        self.logger.info("\n\n RESUME QUARANTNIE !!!!\n\n")
         self.publish(self.make_node("{namespace}/robot_display/open_url"), {"content": "http://0.0.0.0:8080/quarantine.html?" + urllib.urlencode(event)})
 
         '''
@@ -36,29 +35,23 @@ class MyLoop(Loop):
         self.location_doc = self.load_document("quarantine_location")
         self.preference_doc = self.load_document("preferences")
 
-        self.logger.info("location doc = ", self.location_doc)
-        self.logger.info("preference doc = ", self.preference_doc)
-
         '''
             Parse info from app_event file
         '''
         self.schedule_end_time = dateutil.parser.parse(event["end_time"])
         self.target_loc = event["location"]
 
-        self.logger.info("schedule_end_time = ", self.schedule_end_time)
-        self.logger.info("target_loc = ", self.target_loc)
-
         '''
             Parse info from quarantine_location.yaml
         '''
         self.poi_list = self.get_poi_list_with_target_loc()
-        self.logger.info("poi_list = ", self.poi_list)
 
         '''
             Parse info from preference.yaml
         '''
         self.speed = self.preference_doc["SPEED"]
         self.disable_global_path_planning = self.preference_doc["DISABLE_GLOBAL_PATH_PLANNING"]
+        self.disable_obstacle_avoidance = self.preference_doc["DISABLE_OBSTACLE_AVOIDANCE"]
         self.TRY_LPT_COUNT = self.preference_doc["TRY_LPT_COUNT"]
         self.TRY_DRIVE_COUNT = self.preference_doc["TRY_DRIVE_COUNT"]
 
@@ -69,6 +62,7 @@ class MyLoop(Loop):
         self.finish_drive_flag = False
         self.finish_lpt_flag = False
         self.finish_pub_ui = False
+        self.finish_first_moving = False
 
         '''
             Flags for others
@@ -80,7 +74,6 @@ class MyLoop(Loop):
 
         # javascript로 구성된 front-end단이 python으로 구성된 back-end단의 실행 시간보다 빠르기 때문에 sleep을 걸어준다.
         while self.front_ui_ready == False:
-            self.logger.info("Maybe here..??")
             time.sleep(0.5)
             self.front_ui_ready = True
 
@@ -99,39 +92,43 @@ class MyLoop(Loop):
     def on_loop(self):
         if self.finish_quarantine_flag == False:
             if self.schedule_end_time < datetime.now():
-                self.logger.info("TIME OUT!!!!!!!!!!!!!")
                 self.publish(self.make_node("{namespace}/robot_scenario/quarantine_finish"), {})
                 self.finish_quarantine_flag = True
                 self.publish(self.make_node("{namespace}/app_manager/idle"), {})
 
             else:
-                self.logger.info("schedule_end_time = {}, now_time = {}".format(self.schedule_end_time, datetime.now()))
-                if self.finish_lpt_flag == False:
-                    if self.try_lpt_count < self.TRY_LPT_COUNT:
-                        self.action_lpt()
-                    else:
-                        self.logger.warning("LPT 액션 수행 실패")
-                        self.finish_quarantine_flag = True
-
-                if self.finish_pub_ui == False:
-                    self.logger.info("CALL UI!!!!!!!!!!!!!!!!")
-                    self.publish(
-                        self.make_node("{namespace}/robot_scenario/quarantine_start"),
-                        {
-                            "service": "quarantine",
-                            "state": "quarantine"
-                        }
-                    )
-                    self.finish_pub_ui = True
-
                 if self.finish_drive_flag == False:
                     if self.try_drive_count < self.TRY_DRIVE_COUNT:
                         self.action_driving()
                     else:
                         self.logger.warning("DRIVING 액션 수행 실패")
                         self.finish_quarantine_flag = True
+
+                if self.finish_first_moving == True:
+                    if self.finish_lpt_flag == False:
+                        if self.try_lpt_count < self.TRY_LPT_COUNT:
+                            self.action_lpt()
+                        else:
+                            self.logger.warning("LPT 액션 수행 실패")
+                            self.finish_quarantine_flag = True
+
+                    if self.finish_pub_ui == False:
+                        self.publish(
+                            self.make_node("{namespace}/robot_scenario/quarantine_start"),
+                            {
+                                "service": "quarantine",
+                                "state": "quarantine"
+                            }
+                        )
+                        self.finish_pub_ui = True
+
+                    if self.finish_drive_flag == False:
+                        if self.try_drive_count < self.TRY_DRIVE_COUNT:
+                            self.action_driving()
+                        else:
+                            self.logger.warning("DRIVING 액션 수행 실패")
+                            self.finish_quarantine_flag = True
         
-        # self.publish(self.make_node("{namespace}/app_manager/idle"), {})
         return ResponseInfo()
 
     def on_pause(self, evnet):
@@ -171,6 +168,17 @@ class MyLoop(Loop):
                     "tilt": target_tilt,
                 },
             )
+
+            # Face Tracker Action
+            msg = FaceDetectAndTrackActionGoal()
+            msg.goal.origin_lift = target_lift
+            msg.goal.origin_pan = target_pan
+            msg.goal.origin_tilt = target_tilt
+            msg.goal.strategy = FACE_TRACK_NEAREST_FACE
+
+            action_node = self.make_node("{namespace}/face_tracker")
+            gen = self.action_generate(action_node, msg, timeout=30.0, auto_cancel=True)
+
             self.finish_lpt_flag = True
         
         except Exception as e:
@@ -179,6 +187,15 @@ class MyLoop(Loop):
 
     def action_driving(self):
         try:
+            if self.finish_first_moving == False:
+                self.publish(
+                    self.make_node("{namespace}/robot_scenario/quarantine_start"),
+                    {
+                        "service": "quarantine",
+                        "state": "moving"
+                    }
+                )
+
             # poi 리스트가 한 개만 있는 경우
             if len(self.poi_list) == 1:
                 self.poi_idx = 0
@@ -203,7 +220,7 @@ class MyLoop(Loop):
             msg.goal.speed = self.speed
             msg.goal.disable_global_path_planning = self.disable_global_path_planning
             msg.goal.patience_timeout = 30.0
-            msg.goal.disable_obstacle_avoidance = False
+            msg.goal.disable_obstacle_avoidance = self.disable_obstacle_avoidance
             msg.goal.endless = False
 
             # moveto action node
@@ -236,6 +253,10 @@ class MyLoop(Loop):
 
                 else:
                     self.logger.info("Move to POI Success\n")
+
+                    if self.poi_idx == 0:
+                        self.finish_first_moving = True
+                    
                     self.poi_idx += 1
                     self.try_drive_count = 0
 
