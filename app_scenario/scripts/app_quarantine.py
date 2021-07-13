@@ -49,9 +49,11 @@ class MyLoop(Loop):
         '''
             Parse info from preference.yaml
         '''
-        self.speed = self.preference_doc["SPEED"]
+        self.speed_first_poi = self.preference_doc["SPEED_FIRST_POI"]
+        self.speed_rest_poi = self.preference_doc["SPEED_REST_POI"]
         self.disable_global_path_planning = self.preference_doc["DISABLE_GLOBAL_PATH_PLANNING"]
-        self.disable_obstacle_avoidance = self.preference_doc["DISABLE_OBSTACLE_AVOIDANCE"]
+        self.disable_obstacle_avoidance_first_poi = self.preference_doc["DISABLE_OBSTACLE_AVOIDANCE_FIRST_POI"]
+        self.disable_obstacle_avoidance_rest_poi = self.preference_doc["DISABLE_OBSTACLE_AVOIDANCE_REST_POI"]
         self.TRY_LPT_COUNT = self.preference_doc["TRY_LPT_COUNT"]
         self.TRY_DRIVE_COUNT = self.preference_doc["TRY_DRIVE_COUNT"]
 
@@ -217,10 +219,20 @@ class MyLoop(Loop):
             msg = MoveToActionGoal()
             msg.goal.goal.header.frame_id = "map"
             msg.goal.goal.pose = pose
-            msg.goal.speed = self.speed
+
+            if self.finish_first_moving == False:
+                msg.goal.speed = self.speed_first_poi
+            else:
+                msg.goal.speed = self.speed_rest_poi
+            
             msg.goal.disable_global_path_planning = self.disable_global_path_planning
             msg.goal.patience_timeout = 30.0
-            msg.goal.disable_obstacle_avoidance = self.disable_obstacle_avoidance
+
+            if self.finish_first_moving == False:
+                msg.goal.disable_obstacle_avoidance = self.disable_obstacle_avoidance_first_poi
+            else:
+                msg.goal.disable_obstacle_avoidance = self.disable_obstacle_avoidance_rest_poi
+            
             msg.goal.endless = False
 
             # moveto action node
