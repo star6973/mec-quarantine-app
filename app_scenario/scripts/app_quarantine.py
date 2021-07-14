@@ -111,7 +111,7 @@ class MyLoop(Loop):
                         if self.try_lpt_count < self.TRY_LPT_COUNT:
                             self.action_lpt()
                         else:
-                            self.logger.warning("LPT 액션 수행 실패")
+                            self.logger.warning("\n LPT 액션 수행 실패")
                             self.finish_quarantine_flag = True
 
                     if self.finish_pub_ui == False:
@@ -128,7 +128,7 @@ class MyLoop(Loop):
                         if self.try_drive_count < self.TRY_DRIVE_COUNT:
                             self.action_driving()
                         else:
-                            self.logger.warning("DRIVING 액션 수행 실패")
+                            self.logger.warning("\n DRIVING 액션 수행 실패")
                             self.finish_quarantine_flag = True
         
         return ResponseInfo()
@@ -151,7 +151,7 @@ class MyLoop(Loop):
             if name == self.target_loc:
                 return poi
 
-        self.logger.warning("Target Location과 일치하는 poi 값이 없음")
+        self.logger.warning("\n Target Location과 일치하는 poi 값이 없음")
         return []
 
     def action_lpt(self):
@@ -184,7 +184,7 @@ class MyLoop(Loop):
             self.finish_lpt_flag = True
         
         except Exception as e:
-            self.logger.warning("LPT 액션 수행에서 문제 발생 = {}".format(e))
+            self.logger.warning("\n LPT 액션 수행에서 문제 발생 = {}".format(e))
             self.try_lpt_count += 1
 
     def action_driving(self):
@@ -256,6 +256,7 @@ class MyLoop(Loop):
                 # 아래 조건들은 특수한 경우의 예외 조건
                 if driver_state_code == MoveToDriverState.ERROR_PLANNER and action_state_code == ActionState.ERROR_DRIVER:
                     self.logger.warning("ERROR PLANNING\n")
+                    
                     self.try_drive_count += 1
                     time.sleep(2)
 
@@ -264,7 +265,7 @@ class MyLoop(Loop):
                     time.sleep(2)
 
                 else:
-                    self.logger.info("Move to POI Success\n")
+                    self.logger.info("\n Move to POI Success \n")
 
                     if self.poi_idx == 0:
                         self.finish_first_moving = True
@@ -282,7 +283,7 @@ class MyLoop(Loop):
                 self.try_drive_count += 1
 
         except Exception as e:
-            self.logger.warning("DRIVING 액션 수행에서 문제 발생 = {}".format(e))
+            self.logger.warning("\n DRIVING 액션 수행에서 문제 발생 = {}".format(e))
             self.try_drive_count += 1
 
 __class = MyLoop
