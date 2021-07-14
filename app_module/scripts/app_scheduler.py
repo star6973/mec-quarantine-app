@@ -26,6 +26,11 @@ class MyLoop(Loop):
         self.service_mode = self.preferences_doc["MODE"]
 
         '''
+            Parse info from inspection_location.yaml
+        '''
+        self.ip_loc_doc = self.load_document("inspection_location")
+
+        '''
             Parse info from quarantine_location.yaml
         '''
         self.qa_loc_doc = self.load_document("quarantine_location")
@@ -51,7 +56,6 @@ class MyLoop(Loop):
         self.time_offset_prev = 0
         self.time_offset_next = 0
         
-        self.master_poi_doc = None
         self.schedule_doc = None
         self.immediate_response_data = None
 
@@ -184,7 +188,7 @@ class MyLoop(Loop):
 
     # gate 값으로 location 값 찾기
     def find_location_with_gate(self, target_gate):
-        locations = self.master_poi_doc[0]["locations"]
+        locations = self.ip_loc_doc[0]["locations"]
 
         for loc in locations:
             for gate in loc["gates"]:
@@ -250,7 +254,6 @@ class MyLoop(Loop):
         self.receive_schedules_data = sorted(self.receive_schedules_data, key=lambda x: x["starttime"])
         self.receive_arrivals_data = sorted(self.receive_arrivals_data, key=lambda x: x["estimatedDateTime"])
     
-        self.master_poi_doc = self.load_document("master_poi")
         self.schedule_doc = self.load_document("schedule")
         self.preferences_doc = self.load_document("preferences")
 
