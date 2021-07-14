@@ -1,0 +1,50 @@
+locations:
+  - name: "W_102"
+    gates:
+      - name: "230"
+        pois:
+          pose:
+            x: 806.9146346803717
+            y: 415.44293581039193
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.5
+            w: -0.866
+        lpt:
+          lift: 300
+          pan: 0
+          tilt: 0
+      - name: "231"
+        pois:
+          pose:
+            x: 806.9146346803717
+            y: 415.44293581039193
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.5
+            w: -0.866
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+  - name: "W_103"
+    gates:
+      - name: "234"
+        pois:
+          pose:
+            x: 875.5914503831132
+            y: 622.5615926302399
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.342
+            w: 0.94
+        lpt:
+          lift: 300
+          pan: 0
+          tilt: 0
