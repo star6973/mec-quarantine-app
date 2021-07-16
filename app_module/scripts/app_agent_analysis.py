@@ -39,9 +39,9 @@ class MyLoop(Loop):
         '''
             Parse info from preferences.yaml
         '''
-        self.threshold_temp = self.preferences["TEMPERATURE_LIMIT"]
-        self.threshold_mask = self.preferences["MASK_LIMIT"]
-        self.threshold_dist = self.preferences["DISTANCE_LIMIT"]
+        self.threshold_temp = self.preference_doc["TEMPERATURE_LIMIT"]
+        self.threshold_mask = self.preference_doc["MASK_LIMIT"]
+        self.threshold_dist = self.preference_doc["DISTANCE_LIMIT"]
 
         self.use_internal_temperature_analysis = self.preference_doc["USE_INTERNAL_TEMPERATURE_ANALYSIS"]
         self.use_internal_mask_analysis = self.preference_doc["USE_INTERNAL_MASK_ANALYSIS"]
@@ -61,7 +61,7 @@ class MyLoop(Loop):
         self.server_url = self.cas_info_doc["SERVER_URL"]
         self.cctv_type = self.cas_info_doc["CCTV_TYPE"]
         self.post_register_api = self.cas_info_doc["POST_REGISTER_API"]
-        self.post_event_result_api = self.server_infos["POST_EVENT_RESULT_API"]
+        self.post_event_result_api = self.cas_info_doc["POST_EVENT_RESULT_API"]
         self.screen_width = float(self.cas_info_doc["SCREEN_WIDTH"])
         self.screen_height = float(self.cas_info_doc["SCREEN_HEIGHT"])
         
@@ -128,6 +128,14 @@ class MyLoop(Loop):
               마스크 감지에는 rgb 이미지만 필요하고,
               거리두기 감지에는 rgb 이미지와 depth 이미지가 필요하다.
         '''
+
+        self.logger.info("모듈 선택 리스트")
+        self.logger.info("고온 감지 모듈 = ", self.use_internal_temperature_analysis)
+        self.logger.info("마스크 감지 모듈 = ", self.use_internal_mask_analysis)
+        self.logger.info("거리두기 감지 모듈 = ", self.use_internal_distance_analysis)
+        self.logger.info("마스크 감지(외부) 모듈 = ", self.use_external_mask_analysis)
+        self.logger.info("거리두기 감지(외부) 모듈 = ", self.use_external_distance_analysis)
+
         # 고온 감지용(내부 모듈)
         if self.use_internal_temperature_analysis == True:
             rospy.Subscriber("/hikvision_thermal_camera_node/face_temperature", String, self.on_internal_analysis_temperature)
@@ -218,6 +226,8 @@ class MyLoop(Loop):
                             ]
                         )
                         self.detect_mask.append(rect)
+
+                        self.logger.info("=========== Callback Function ==========", self.detect_mask)
 
         if self.use_internal_distance_analysis == True:
             pedestrians = res.pedestrians
@@ -312,6 +322,8 @@ class MyLoop(Loop):
     '''
     # inspection에서 요청하는 event listener
     def on_analysis_data(self, res):
+        self.logger.info("\n\n 영상 분석 시작 !!!")
+
         event_result = {
             "temperature": False,
             "mask": [],
@@ -322,6 +334,9 @@ class MyLoop(Loop):
 
         # 1. 고온 감지(우선 순위 1)
         if self.use_internal_temperature_analysis == True:
+            self.logger.info("고온 감지 모듈이 켜져있습니다.")
+            self.logger.info("\n\n Themral Data = ", self.detect_temperature)
+
             if self.detect_temperature == True:
                 event_image = self.raw_thermal_image
                 self.publish(self.make_node("{namespace}/agent_analysis_data/thermal_detected_data"), {"data": event_image})
@@ -333,7 +348,12 @@ class MyLoop(Loop):
                 
         # 2. 마스크 감지(우선 순위 2)
         if self.use_internal_mask_analysis == True:
+            self.logger.info("마스크 감지 모듈이 켜져있습니다.")
+            self.logger.info("\n\n Mask Data = ", self.detect_mask)
+
             if len(self.detect_mask) > 0:
+                self.logger.info("\n\n Detected Mask !!!")
+
                 event_image = self.raw_rgbd_image
                 self.publish(self.make_node("{namespace}/agent_analysis_data/rgbd_detected_data"), {"data": event_image})
 
@@ -344,6 +364,7 @@ class MyLoop(Loop):
 
         # 3. 거리두기 감지(우선 순위 3)
         if self.use_internal_distance_analysis == True:
+            self.logger.info("거리두기 감지 모듈이 켜져있습니다.")
             if self.detect_distance == True:
                 event_image = self.raw_rgbd_image
                 self.publish(self.make_node("{namespace}/agent_analysis_data/rgbd_detected_data"), {"data": event_image})
@@ -352,6 +373,10 @@ class MyLoop(Loop):
                 result_data["state"] = "mode_distance"
                 result_data["event_result"] = event_result
                 self.publish(self.make_node("{namespace}/robot_scenario/event"), result_data)
+
+        self.logger.info("\n\n End Data Ananlysis!!!")
+        self.logger.info("\n\n 감지가 안된 경우이므로 다시 inspection 시작")
+        self.publish(self.make_node("{namespace}/agent_analysis_data/analysis_ready"), {})
 
         # # 4. 영상 분석 서버에 분석 의뢰(True로 설정되어 있는 경우에만)
         # if (self.use_external_mask_analysis == True and self.use_internal_mask_analysis == False) or (self.use_external_distance_analysis == True and self.use_internal_distance_analysis == False):
