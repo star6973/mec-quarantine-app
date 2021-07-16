@@ -73,7 +73,7 @@ class MyLoop(Loop):
         self.try_drive_count = 0
         self.try_lpt_count = 0
 
-        self.ready_to_request_analysis = False
+        self.ready_to_request_analysis = True
         self.front_ui_ready = False
 
         while self.front_ui_ready == False:
@@ -138,7 +138,7 @@ class MyLoop(Loop):
 
     # inspection.js에서 ui가 끝났음을 알리는 콜백 함수
     def on_front_ui_finish(self, msg):
-        self.ready_to_request_analysis = False
+        self.ready_to_request_analysis = True
 
     def get_poi_and_lpt_with_target_loc(self):
         for doc in self.location_doc["locations"]:
@@ -256,47 +256,8 @@ class MyLoop(Loop):
             self.try_lpt_count += 1
 
     def action_service(self):
-        if self.ready_to_request_analysis is False:
-            self.publish(
-                self.make_node("{namespace}/agent_analysis_data/transfer_image"), {}
-            )
-            self.ready_to_request_analysis = True
-
-    def on_analysis_event_result(self, res):
-        event_result_status = res.body["status"]
-        event_result_data = res.body["event_result"]
-
-        result_data = {}
-
-        # 감지가 된 경우, inspection.js로 publish하기
-        if event_result_status == unicode("ok", "utf-8"):
-
-            if event_result_data["high_temp"] == True:
-                self.logger.info("\n\n Agent Analysis에서 고온 감지됨 \n")
-                self.logger.info("\n 고온 감지 데이터 = {}".format(event_result_data))
-                
-                result_data["state"] = "mode_temperature"  
-                result_data["event_result"] = event_result_data
-                self.publish(self.make_node("{namespace}/robot_scenario/event"), result_data)
-
-            elif event_result_data["mask"] != []:
-                self.logger.info("\n\n Agent Analysis에서 마스크 감지됨 \n")
-                self.logger.info("\n 마스크 감지 데이터 = {}".format(event_result_data))
-                
-                result_data["state"] = "mode_mask"
-                result_data["event_result"] = event_result_data
-                self.publish(self.make_node("{namespace}/robot_scenario/event"), result_data)
-
-            elif event_result_data["distance"] == True:
-                self.logger.info("\n\n Agent Analysis에서 거리두기 감지됨 \n")
-                self.logger.info("\n 거리두기 감지 데이터 = {}".format(event_result_data))
-                
-                result_data["state"] = "mode_distance"
-                result_data["event_result"] = event_result_data
-                self.publish(self.make_node("{namespace}/robot_scenario/event"), result_data)
-
-        # 감지가 되지 않은 경우, agent_analysis.py에 다시 요청하기
-        else:
+        if self.ready_to_request_analysis == True:
+            self.publish(self.make_node("{namespace}/agent_analysis_data/transfer_image"), {})
             self.ready_to_request_analysis = False
 
 __class = MyLoop
