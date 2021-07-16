@@ -26,7 +26,7 @@ class MyLoop(Loop):
     def on_create(self, event):
         self.add_listener(self.make_node("{namespace}/inspection/event/ui_ready"), self.on_front_ui_ready)
         self.add_listener(self.make_node("{namespace}/inspection/event/ui_finish"), self.on_front_ui_finish)
-        self.add_listener(self.make_node("{namespace}/agent_analysis_data/event_result_data"), self.on_analysis_event_result)
+        self.add_listener(self.make_node("{namespace}/agent_analysis_data/analysis_ready"), self.on_agent_analysis_finish)
 
         return ResponseInfo()
 
@@ -43,8 +43,8 @@ class MyLoop(Loop):
             Parse info from app_event file
         '''
         self.schedule_end_time = dateutil.parser.parse(event["end_time"])
-        self.target_gate = self.event["gate"]
-        self.target_loc = self.event["location"]
+        self.target_gate = event["gate"]
+        self.target_loc = event["location"]
 
         '''
             Parse info from inspection_location.yaml
@@ -117,11 +117,7 @@ class MyLoop(Loop):
                         self.finish_inspection_flag = True
 
                 if self.finish_drive_flag == True and self.finish_lpt_flag == True:
-                    if self.try_service_count < self.TRY_SERVICE_COUNT:
-                        self.action_service()
-                    else:
-                        self.logger.warning("\n 서비스 액션 수행 실패")
-                        self.finish_inspection_flag = True
+                    self.action_service()
 
         return ResponseInfo()
 
@@ -140,6 +136,9 @@ class MyLoop(Loop):
     def on_front_ui_finish(self, msg):
         self.ready_to_request_analysis = True
 
+    def on_agent_analysis_finish(self, msg):
+        self.ready_to_request_analysis = True
+
     def get_poi_and_lpt_with_target_loc(self):
         for doc in self.location_doc["locations"]:
             if doc["name"] == self.target_loc:
@@ -151,6 +150,9 @@ class MyLoop(Loop):
         return [], []
 
     def action_driving(self):
+        self.finish_drive_flag = True
+        return
+
         try:
             pose = Pose()
             pose.position = Point(x=self.target_poi["pose"]["x"], y=self.target_poi["pose"]["y"], z=self.target_poi["pose"]["z"])
@@ -257,6 +259,7 @@ class MyLoop(Loop):
 
     def action_service(self):
         if self.ready_to_request_analysis == True:
+            self.logger.info("\n\nAction Start!!!")
             self.publish(self.make_node("{namespace}/agent_analysis_data/transfer_image"), {})
             self.ready_to_request_analysis = False
 
