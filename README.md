@@ -1,1 +1,1 @@
-# mec_quarantine_app
+# 방역 모드 서비스
