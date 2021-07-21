@@ -691,6 +691,8 @@ class MyLoop(Loop):
                         schedule_status = 0
 
                     # 로컬(충전), 관제(충전)
+                    # 충전소로 복귀하는 상황에서도 관제에서 꾸준히 1분마다 스케줄을 업데이트 함.
+                    # 관제에서 내려온 end_time으로 업데이트 하는 경우, app_event를 다시 실행하기 때문에 충전소 복귀가 재시도하는 것처럼 보임.
                     elif loc_service == "-1" and agent_service == "-1":
                         # 충전 end_time이 서로 다른 경우, 관제 end_time으로 업데이트
                         if loc_end_time != agent_end_time:
