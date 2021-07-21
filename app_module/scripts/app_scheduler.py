@@ -108,6 +108,7 @@ class MyLoop(Loop):
         self.is_low_battery = False
 
     # console 화면과 nats로 통신, 로컬에서 긴급 임무를 주어질 경우 바로 동작할 수 있도록 publish function을 사용한다.
+    # (fix #2) app_console에서 즉시 임무 실행 시, /schedule/run_immediately nats를 통해 request body 전달.
     def on_immediate_schedule(self, res):
         if "canceled" in res.body:
             self.logger.info("\n\n <<<<<<<<<< [Immediate Mission Schedule] Canceled from Console Display >>>>>>>>>> \n\n")
