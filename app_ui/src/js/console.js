@@ -30,6 +30,4 @@ app.controller("BodyCtrl", function ($scope, $http) {
             $scope.Initializing()
         }
     }
-
-    $scope.Initializing = () => {}; 
 });
