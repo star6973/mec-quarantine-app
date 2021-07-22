@@ -114,6 +114,7 @@ class MyLoop(Loop):
             self.logger.info("\n\n <<<<<<<<<< [Immediate Mission Schedule] Canceled from Console Display >>>>>>>>>> \n\n")
 
             self.immediate_mission_schedule = dict()
+            # 즉시 임무 수행이 취소된 경우에도 schedule.yaml 파일을 비우도록 해야 한다. - 1
             self.save_document("schedule", [])
 
         else:
@@ -356,6 +357,8 @@ class MyLoop(Loop):
                     self.logger.info("\n 긴급 임무 스케줄을 중간에 취소했습니다... \n")
 
                     self.immediate_mission_schedule = dict()
+
+                     # 즉시 임무 수행이 취소된 경우에도 schedule.yaml 파일을 비우도록 해야 한다. - 2
                     self.save_document("schedule", [])
 
                 else:
@@ -387,6 +390,8 @@ class MyLoop(Loop):
                     self.logger.info("\n 긴급 충전 스케줄을 중간에 취소했습니다... \n")
 
                     self.immediate_charging_schedule = dict()
+                    
+                     # 즉시 임무 수행이 취소된 경우에도 schedule.yaml 파일을 비우도록 해야 한다. - 3
                     self.save_document("schedule", [])
 
                 else:
