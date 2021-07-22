@@ -52,6 +52,7 @@ class MyLoop(Loop):
         self.speed_first_poi = self.preference_doc["SPEED_FIRST_POI"]
         self.speed_rest_poi = self.preference_doc["SPEED_REST_POI"]
         self.disable_global_path_planning = self.preference_doc["DISABLE_GLOBAL_PATH_PLANNING"]
+        self.disable_global_path_planning_on_service = self.preference_doc["DISABLE_GLOBAL_PATH_PLANNING_ON_SERVICE"]
         self.disable_obstacle_avoidance_first_poi = self.preference_doc["DISABLE_OBSTACLE_AVOIDANCE_FIRST_POI"]
         self.disable_obstacle_avoidance_rest_poi = self.preference_doc["DISABLE_OBSTACLE_AVOIDANCE_REST_POI"]
         self.TRY_LPT_COUNT = self.preference_doc["TRY_LPT_COUNT"]
@@ -225,7 +226,7 @@ class MyLoop(Loop):
             else:
                 msg.goal.speed = self.speed_rest_poi
             
-            msg.goal.disable_global_path_planning = self.disable_global_path_planning
+            msg.goal.disable_global_path_planning = self.disable_global_path_planning_on_service
             msg.goal.patience_timeout = 30.0
 
             if self.finish_first_moving == False:
