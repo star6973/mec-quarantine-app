@@ -1,6 +1,27 @@
 "use strict";
 
 import './lottie.js'
+import { Howl } from 'howler';
+
+export function sound_and_speak(key, id, loop, cbcb) {
+	let key_eng = key + '-eng.wav';
+	let sound = createjs.Sound.play(id, {
+		loop: (loop ? -1 : 0),
+		volume: VOLUME_EFFECT
+	})
+	
+	sound.on("complete", function() {
+		inspection_speak_instance = new Howl({
+			src: ['./contents/res/sound/speak/' + key_eng],
+			autoplay: true,
+			volume: 1.0,
+			onend: function () {
+				cbcb()
+			}
+		})
+	})
+}
+
 
 export function create_quarantine_speak(key) {
 	let key_eng = key + '.wav'

@@ -150,9 +150,6 @@ class MyLoop(Loop):
         return [], []
 
     def action_driving(self):
-        self.finish_drive_flag = True
-        return
-
         try:
             pose = Pose()
             pose.position = Point(x=self.target_poi["pose"]["x"], y=self.target_poi["pose"]["y"], z=self.target_poi["pose"]["z"])

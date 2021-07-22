@@ -333,160 +333,41 @@ class MyLoop(Loop):
         result_data = {}
 
         # 1. 고온 감지(우선 순위 1)
-        if self.use_internal_temperature_analysis == True:
-            self.logger.info("고온 감지 모듈이 켜져있습니다.")
-            self.logger.info("\n\n Themral Data = ", self.detect_temperature)
+        if self.detect_temperature == True:
+            event_image = self.raw_thermal_image
+            self.publish(self.make_node("{namespace}/agent_analysis_data/thermal_detected_data"), {"data": event_image})
 
-            if self.detect_temperature == True:
-                event_image = self.raw_thermal_image
-                self.publish(self.make_node("{namespace}/agent_analysis_data/thermal_detected_data"), {"data": event_image})
-
-                event_result["temperature"] = self.detect_temperature
-                result_data["state"] = "mode_temperature"
-                result_data["event_result"] = event_result
-                self.publish(self.make_node("{namespace}/robot_scenario/event"), result_data)
+            event_result["temperature"] = self.detect_temperature
+            result_data["state"] = "mode_temperature"
+            result_data["event_result"] = event_result
+            self.publish(self.make_node("{namespace}/robot_scenario/event"), result_data)
                 
         # 2. 마스크 감지(우선 순위 2)
-        if self.use_internal_mask_analysis == True:
-            self.logger.info("마스크 감지 모듈이 켜져있습니다.")
-            self.logger.info("\n\n Mask Data = ", self.detect_mask)
+        elif len(self.detect_mask) > 0:
+            self.logger.info("\n\n Detected Mask !!!")
 
-            if len(self.detect_mask) > 0:
-                self.logger.info("\n\n Detected Mask !!!")
+            event_image = self.raw_rgbd_image
+            self.publish(self.make_node("{namespace}/agent_analysis_data/rgbd_detected_data"), {"data": event_image})
 
-                event_image = self.raw_rgbd_image
-                self.publish(self.make_node("{namespace}/agent_analysis_data/rgbd_detected_data"), {"data": event_image})
-
-                event_result["mask"] = self.detect_mask
-                result_data["state"] = "mode_mask"
-                result_data["event_result"] = event_result
-                self.publish(self.make_node("{namespace}/robot_scenario/event"), result_data)
+            event_result["mask"] = self.detect_mask
+            result_data["state"] = "mode_mask"
+            result_data["event_result"] = event_result
+            self.publish(self.make_node("{namespace}/robot_scenario/event"), result_data)
 
         # 3. 거리두기 감지(우선 순위 3)
-        if self.use_internal_distance_analysis == True:
-            self.logger.info("거리두기 감지 모듈이 켜져있습니다.")
-            if self.detect_distance == True:
-                event_image = self.raw_rgbd_image
-                self.publish(self.make_node("{namespace}/agent_analysis_data/rgbd_detected_data"), {"data": event_image})
+        elif self.detect_distance == True:
+            event_image = self.raw_rgbd_image
+            self.publish(self.make_node("{namespace}/agent_analysis_data/rgbd_detected_data"), {"data": event_image})
 
-                event_result["distance"] = self.detect_distance
-                result_data["state"] = "mode_distance"
-                result_data["event_result"] = event_result
-                self.publish(self.make_node("{namespace}/robot_scenario/event"), result_data)
+            event_result["distance"] = self.detect_distance
+            result_data["state"] = "mode_distance"
+            result_data["event_result"] = event_result
+            self.publish(self.make_node("{namespace}/robot_scenario/event"), result_data)
 
-        self.logger.info("\n\n End Data Ananlysis!!!")
-        self.logger.info("\n\n 감지가 안된 경우이므로 다시 inspection 시작")
-        self.publish(self.make_node("{namespace}/agent_analysis_data/analysis_ready"), {})
-
-        # # 4. 영상 분석 서버에 분석 의뢰(True로 설정되어 있는 경우에만)
-        # if (self.use_external_mask_analysis == True and self.use_internal_mask_analysis == False) or (self.use_external_distance_analysis == True and self.use_internal_distance_analysis == False):
-        #     # 4.1. 이미지 전송
-        #     rid = str(uuid.uuid4())
-        #     self.request_id_and_image_buffer[self.rid_put_idx] = {rid: self.raw_rgbd_image}
-        #     self.rid_put_idx = self.rid_put_idx + 1
-
-        #     # if buffer is full, make index to zero
-        #     if self.rid_put_idx >= self.rid_buffer_len:
-        #         self.rid_put_idx = 0
-
-        #     nownow = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
-
-        #     request_body = {
-        #         "cctv_id": self.cctv_id,
-        #         "cctv_pos": self.cctv_pos,
-        #         "request_id": rid,
-        #         "image": {
-        #             "image": self.rgbd_image,
-        #             "width": self.rgbd_width,
-        #             "height": self.rgbd_height,
-        #         },
-        #         "distance": {
-        #             "matrix": self.depth_image,
-        #             "width": self.depth_width,
-        #             "height": self.depth_height,
-        #         },
-        #         "time": nownow,
-        #     }
-
-        #     response = requests.post(
-        #         url=self.transfer_image_url,
-        #         json=request_body,
-        #         verify=False,
-        #     )
-
-        #     self.logger.info("\n\n 영상 분석 서버 데이터 요청 status code = {} \n".format(response.status_code))
-
-        #     # 4.2. 분석 결과 request
-        #     for i in range(self.rid_buffer_len):
-        #         if self.request_id_and_image_buffer[i].keys()[0] == '':
-        #             continue
-
-        #         request_body = {
-        #             "cctv_id": self.cctv_id,
-        #             "request_id": self.request_id_and_image_buffer[i].keys()[0]
-        #         }
-
-        #         response = requests.post(
-        #             url=self.server_url + self.post_event_result_api,
-        #             json=request_body
-        #         )
-
-        #         self.logger.warning("request = ", request_body)
-        #         self.logger.warning("response data = ", response.json())
-
-        #         # 응답 관련 데이터들 뽑아내기
-        #         response_json = response.json()
-        #         response_status_code = response_json["status"]
-        #         response_event_result = response_json["event_result"]
-
-        #         if response_status_code == unicode("ok", "utf-8"):
-        #             self.logger.info("\n\n Response ok!!")
-        #             self.logger.info("response [ok] rid: {}\n".format(self.request_id_and_image_buffer[i].keys()[0]))
-
-        #             # 4.2.1. 마스크 감지 결과 저장
-        #             if "mask" in response_event_result.keys():
-        #                 event_result["mask"] = response_event_result["mask"]
-
-        #             # 4.2.2. 거리두기 감지 결과 저장
-        #             if "distance" in response_event_result.keys():
-        #                 event_result["distance"] = True
-
-        #             event_image = self.request_id_and_image_buffer[i][self.request_id_and_image_buffer[i].keys()[0]]
-        #             self.request_id_and_image_buffer[i] = {'': None}
-
-        #         elif response_status_code == unicode("none", "utf-8"):
-        #             self.logger.info("\n\n Response none!!")
-        #             self.logger.info("response [none] rid: {}\n".format(self.request_id_and_image_buffer[i].keys()[0]))
-        #             self.request_id_and_image_buffer[i] = {'': None}
-
-        #         else:
-        #             self.logger.info("\n\n Response delay!!")
-        #             self.logger.info("response [{}] rid: {}\n".format(response_status_code, self.request_id_and_image_buffer[i].keys()[0]))
-
-        #     # 5. 결과 전송
-        #     if event_image != None:
-        #         self.publish(self.make_node("{namespace}/agent_analysis_data/rgbd_detected_data"), {"data": event_image})
-
-        #         if len(event_result["mask"]) > 0:
-        #             event_image = self.raw_rgbd_image
-        #             self.publish(self.make_node("{namespace}/agent_analysis_data/rgbd_detected_data"), {"data": event_image})
-
-        #             event_result["mask"] = self.detect_mask
-        #             result_data["state"] = "mode_mask"
-        #             result_data["event_result"] = event_result
-        #             self.publish(self.make_node("{namespace}/robot_scenario/event"), result_data)
-                
-        #         if event_result["distance"] == True:
-
-        #     else:
-        #         self.logger.info("response image None!!!!!!!!!!!!!!!!!!")
-
-            
-
-        #     self.publish(self.make_node("{namespace}/agent_analysis_data/event_result_data"), {"status": event_status, "event_result": event_result})
-
-        #     self.reset_analysis_result()
-
+        else:
+            self.logger.info("\n\n End Data Ananlysis!!!")
+            self.logger.info("\n\n 감지가 안된 경우이므로 다시 inspection 시작")
+            self.publish(self.make_node("{namespace}/agent_analysis_data/analysis_ready"), {})
 
 __class = MyLoop
 if __name__ == "__main__":
