@@ -30,7 +30,7 @@ app.controller("BodyCtrl", function ($scope, $http) {
         $scope.inspect_state = STATE_MOVING
         $scope.image_result = STATE_LIVE
 
-        lottieloader('inspecting_mv_lottie', './contents/img/lottie/move/data.json', true, true)
+        lottieloader('inspecting_mv_lottie', '../src/img/moving.json', true, true)
         
         LED_SET_COLOR(LED_DEVICE_HEAD, LED_COLOR_OFF)
         LED_SET_COLOR(LED_DEVICE_BOTTOM, LED_COLOR_OFF)
@@ -132,7 +132,7 @@ app.controller("BodyCtrl", function ($scope, $http) {
                 $scope.inspect_state = STATE_MOVING
 
                 lpt_control(0, 0, 0)
-                lottieloader('inspecting_mv_lottie', './contents/img/lottie/move/data.json', true, true)
+                lottieloader('inspecting_mv_lottie', '../src/img/moving.json', true, true)
 
                 LED_SET_COLOR(LED_DEVICE_HEAD, LED_COLOR_OFF)
                 LED_SET_COLOR(LED_DEVICE_BOTTOM, LED_COLOR_OFF)
