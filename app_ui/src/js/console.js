@@ -47,7 +47,7 @@ app.controller("BodyCtrl", function ($scope, $http) {
     })
 
     /*
-        handle for immediate schedule
+        required variables for handle immediate schedule
     */
     $scope.imm_sch_cancel = true
     $scope.imm_sch_hour = "00"
