@@ -5,7 +5,7 @@ import os
 import signal
 import traceback
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import dateutil.parser
 import urllib
 from rade.modulebase import Loop, RosWrapper
@@ -57,7 +57,8 @@ class MyLoop(Loop):
         self.disable_obstacle_avoidance_rest_poi = self.preference_doc["DISABLE_OBSTACLE_AVOIDANCE_REST_POI"]
         self.TRY_LPT_COUNT = self.preference_doc["TRY_LPT_COUNT"]
         self.TRY_DRIVE_COUNT = self.preference_doc["TRY_DRIVE_COUNT"]
-
+        self.time_offset_obstacle = self.preference_doc["TIME_OFFSET_OBSTACLE"]
+        
         '''
             Flags for running the service
         '''
@@ -73,8 +74,10 @@ class MyLoop(Loop):
         self.poi_idx = 0
         self.try_lpt_count = 0
         self.try_drive_count = 0
-        self.front_ui_ready = False
 
+        self.find_obstacle = False
+        self.front_ui_ready = False
+        
         # javascript로 구성된 front-end단이 python으로 구성된 back-end단의 실행 시간보다 빠르기 때문에 sleep을 걸어준다.
         while self.front_ui_ready == False:
             time.sleep(0.5)
@@ -226,15 +229,25 @@ class MyLoop(Loop):
             else:
                 msg.goal.speed = self.speed_rest_poi
             
-            msg.goal.disable_global_path_planning = self.disable_global_path_planning_on_service
             msg.goal.patience_timeout = 30.0
 
             if self.finish_first_moving == False:
                 msg.goal.disable_obstacle_avoidance = self.disable_obstacle_avoidance_first_poi
+                msg.goal.disable_global_path_planning = self.disable_global_path_planning
+
+            elif self.find_obstacle == True:
+                msg.goal.disable_obstacle_avoidance = self.disable_obstacle_avoidance_first_poi
+                msg.goal.disable_global_path_planning = self.disable_global_path_planning_on_service
+                self.find_obstacle = False
+
             else:
                 msg.goal.disable_obstacle_avoidance = self.disable_obstacle_avoidance_rest_poi
+                msg.goal.disable_global_path_planning = self.disable_global_path_planning_on_service
             
             msg.goal.endless = False
+
+            now_time = datetime.now()
+            time_offset = now_time + timedelta(seconds=self.time_offset_obstacle)
 
             # moveto action node
             action_node = self.make_node("{namespace}/workerbee_navigation/moveto")
@@ -242,28 +255,31 @@ class MyLoop(Loop):
 
             # if action start, on_loop does not activate
             for process in gen:
-                driver_state_code = process.body["state"]["driver_state"]["code"]
                 action_state_code = process.body["state"]["action_state"]["code"]
+                driver_state_code = process.body["state"]["driver_state"]["code"]
+                
                 if driver_state_code > 1 or action_state_code != ActionState.NO_ERROR:
                     pass
 
-            self.logger.info("Action Generate Result = {}\n".format(gen.result))
+                if action_state_code == ActionState.ERROR_DRIVER and driver_state_code == MoveToDriverState.ERROR_CONTROLLER:
+                    # 30초가 지나면 for문 탈출하면서 재시도
+                    if datetime.now() > time_offset:
+                        self.find_obstacle = True
+                        break
 
+            self.logger.info("Action Generate Result = {}\n".format(gen.result))
+ 
             # /workerbee_navigation/moveto/result 토픽 결과를 바탕으로 action 성공 유무 확인
             if gen.result.error == False:
-                driver_state_code = gen.result.body["state"]["driver_state"]["code"]
-                action_state_code = gen.result.body["state"]["action_state"]["code"]
+                action_state_code = process.body["state"]["action_state"]["code"]
+                driver_state_code = process.body["state"]["driver_state"]["code"]
 
                 # 아래 조건들은 특수한 경우의 예외 조건
-                if driver_state_code == MoveToDriverState.ERROR_PLANNER and action_state_code == ActionState.ERROR_DRIVER:
-                    self.logger.warning("ERROR PLANNING\n")
-                    
+                if action_state_code == ActionState.ERROR_DRIVER and driver_state_code == MoveToDriverState.ERROR_CONTROLLER:
                     self.try_drive_count += 1
-                    time.sleep(2)
 
-                elif driver_state_code != MoveToDriverState.NO_ERROR or action_state_code != ActionState.NO_ERROR:
+                elif action_state_code != ActionState.NO_ERROR or driver_state_code != MoveToDriverState.NO_ERROR:
                     self.try_drive_count += 1
-                    time.sleep(2)
 
                 else:
                     self.logger.info("\n Move to POI Success \n")
@@ -275,9 +291,10 @@ class MyLoop(Loop):
                     self.try_drive_count = 0
 
             else:
-                driver_state_code = gen.result.body["state"]["driver_state"]["code"]
-                action_state_code = gen.result.body["state"]["action_state"]["code"]
-                if driver_state_code == MoveToDriverState.NO_ERROR and action_state_code == ActionState.ERROR_FAULT:
+                action_state_code = process.body["state"]["action_state"]["code"]
+                driver_state_code = process.body["state"]["driver_state"]["code"]
+
+                if action_state_code == ActionState.ERROR_FAULT and driver_state_code == MoveToDriverState.NO_ERROR:
                     self.logger.warning("LOCALIZATION FAULT\n")
 
                 self.logger.warning("ERROR DRIVER\n")
