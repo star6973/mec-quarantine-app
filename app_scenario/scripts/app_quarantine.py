@@ -148,7 +148,7 @@ class MyLoop(Loop):
         self.front_ui_ready = True
 
     def get_poi_list_with_target_loc(self):
-        for doc in self.location_doc:
+        for doc in self.location_doc["locations"]:
             name = doc["name"]
             poi = doc["poi"]
 

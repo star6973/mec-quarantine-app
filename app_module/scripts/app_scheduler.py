@@ -31,11 +31,6 @@ class MyLoop(Loop):
         self.ip_loc_doc = self.load_document("inspection_location")
 
         '''
-            Parse info from quarantine_location.yaml
-        '''
-        self.qa_loc_doc = self.load_document("quarantine_location")
-
-        '''
             Erase exist schedule
         '''
         self.save_document("schedule", [])

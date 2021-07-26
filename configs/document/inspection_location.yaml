@@ -12,10 +12,10 @@ locations:
             y: 0.0
             z: 0.5
             w: -0.866
-        lpt:
-          lift: 300
-          pan: 0
-          tilt: 0
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
       - name: "231"
         pois:
           pose:
@@ -27,6 +27,66 @@ locations:
             y: 0.0
             z: 0.5
             w: -0.866
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "232"
+        pois:
+          pose:
+            x: 840.9760657677274
+            y: 460.33082310603226
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.342
+            w: -0.94
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "233"
+        pois:
+          pose:
+            x: 864.4376042292665
+            y: 535.10005446214
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.259
+            w: -0.966
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "246"
+        pois:
+          pose:
+            x: 857.636053943
+            y: 537.225057843
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.999985058771
+            w: -0.00546646452051
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "247"
+        pois:
+          pose:
+            x: 795.165615672
+            y: 416.22740717
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: -0.479924221462
+            w: -0.877309946173
           lpt:
             lift: 300
             pan: 0
@@ -44,7 +104,416 @@ locations:
             y: 0.0
             z: 0.342
             w: 0.94
-        lpt:
-          lift: 300
-          pan: 0
-          tilt: 0
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "235"
+        pois:
+          pose:
+            x: 873.443936428
+            y: 668.826739535
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.0136747035328
+            w: -0.99990649687
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "236"
+        pois:
+          pose:
+            x: 873.443936428
+            y: 668.826739535
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.0136747035328
+            w: -0.99990649687
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "237"
+        pois:
+          pose:
+            x: 873.443936428
+            y: 668.826739535
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.0136747035328
+            w: -0.99990649687
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "238"
+        pois:
+          pose:
+            x: 873.443936428
+            y: 668.826739535
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.0136747035328
+            w: -0.99990649687
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "239"
+        pois:
+          pose:
+            x: 871.306527506
+            y: 658.858403707
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.687968491765
+            w: 0.725740555804
+          lpt:
+            lift: 3000
+            pan: 0
+            tilt: 0
+      - name: "240"
+        pois:
+          pose:
+            x: 871.306527506
+            y: 658.858403707
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.687968491765
+            w: 0.725740555804
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "241"
+        pois:
+          pose:
+            x: 871.306527506
+            y: 658.858403707
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.687968491765
+            w: 0.725740555804
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "242"
+        pois:
+          pose:
+            x: 871.306527506
+            y: 658.858403707
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.687968491765
+            w: 0.725740555804
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "243"
+        pois:
+          pose:
+            x: 871.306527506
+            y: 658.858403707
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.687968491765
+            w: 0.725740555804
+          lpt:
+            lift: 350
+            pan: 0
+            tilt: 0
+      - name: "245"
+        pois:
+          pose:
+            x: 876.387937743
+            y: 631.2785599
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.995710393738
+            w: -0.0925246551076
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+  - name: "E_103"
+    gates:
+      - name: "255"
+        pois:
+          pose:
+            x: 118.4075399062
+            y: 589.1521118731
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.8618684126
+            w: 0.5071319743
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "256"
+        pois:
+          pose:
+            x: 114.6846787034
+            y: 636.2318148136
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.8403238016
+            w: 0.5420847798
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "257"
+        pois:
+          pose:
+            x: 114.6846787034
+            y: 636.2318148136
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.8403238016
+            w: 0.5420847798
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "258"
+        pois:
+          pose:
+            x: 114.6846787034
+            y: 636.2318148136
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.8403238016
+            w: 0.5420847798
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "259"
+        pois:
+          pose:
+            x: 114.6846787034
+            y: 636.2318148136
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.8403238016
+            w: 0.5420847798
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "260"
+        pois:
+          pose:
+            x: 114.6846787034
+            y: 636.2318148136
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.8403238016
+            w: 0.5420847798
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "261"
+        pois:
+          pose:
+            x: 114.6846787034
+            y: 636.2318148136
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.8403238016
+            w: 0.5420847798
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "262"
+        pois:
+          pose:
+            x: 114.6846787034
+            y: 636.2318148136
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.8403238016
+            w: 0.5420847798
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "263"
+        pois:
+          pose:
+            x: 114.6846787034
+            y: 636.2318148136
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.8403238016
+            w: 0.5420847798
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "264"
+        pois:
+          pose:
+            x: 114.6846787034
+            y: 636.2318148136
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.8403238016
+            w: 0.5420847798
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "265"
+        pois:
+          pose:
+            x: 114.6272839149
+            y: 588.5552957755
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.7027648241
+            w: 0.7114222389
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+  - name: "E_102"
+    gates:
+      - name: "254"
+        pois:
+          pose:
+            x: 159.5041048137066
+            y: 457.4411592994272
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.766
+            w: 0.643
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "266"
+        pois:
+          pose:
+            x: 125.7952483813
+            y: 531.2811350551
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.9930122748
+            w: 0.1180111103
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "267"
+        pois:
+          pose:
+            x: 150.0350936096
+            y: 456.6327348513
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.9999997857
+            w: 0.0006546202
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "268"
+        pois:
+          pose:
+            x: 186.1975342361
+            y: 412.86264321
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.9589464917
+            w: -0.2835870697
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "269"
+        pois:
+          pose:
+            x: 186.1975342361
+            y: 412.86264321
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.9589464917
+            w: -0.2835870697
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
+      - name: "270"
+        pois:
+          pose:
+            x: 186.1975342361
+            y: 412.86264321
+            z: 0.0
+          orientation:
+            x: 0.0
+            y: 0.0
+            z: 0.9589464917
+            w: -0.2835870697
+          lpt:
+            lift: 300
+            pan: 0
+            tilt: 0
