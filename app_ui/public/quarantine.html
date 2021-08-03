@@ -1,12 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Robot Quarantine</title>
-</head>
-<body>
-    
-</body>
+<html ng-app="RobotUI">
+    <head>
+        <title>RobotUI Face</title>
+    </head>
+    <body data-ng-controller="BodyCtrl">
+        <div id="quarantine_move" ng-show="quarantine_state == 'moving'">
+            <div class="title_text_style" id="title">{{getLang("TEXT/MOVE/MOVE_TITLE")}}</div>
+            <div class="title_sub_text_style" id="title_sub">{{getLang("TEXT/MOVE/MOVE_SUB_TITLE")}}</div>
+            <div id="quarantine_mv_lottie"></div>
+        </div>
+        <div id="quarantine" ng-show="quarantine_state == 'quarantine'">
+            <div class="figure"><img id="protect_img"/></div>
+        </div>
+    </body>
 </html>
