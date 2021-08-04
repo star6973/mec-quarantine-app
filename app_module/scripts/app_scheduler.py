@@ -141,6 +141,7 @@ class MyLoop(Loop):
                         # 충전소 안에서는 undocking을 먼저
                         if self.cur_display == "charging" or self.is_charging == True:
                             self.publish(self.make_node("{namespace}/app_manager/undocking"), {"type": "next_idle"})
+
                         # 충전소 밖에서는 바로 임무 수행
                         else:
                             self.publish(self.make_node("{namespace}/app_manager/idle"), {})
@@ -169,6 +170,7 @@ class MyLoop(Loop):
                     
                     if self.cur_display == "charging" or self.is_charging == True:
                         self.publish(self.make_node("{namespace}/app_manager/undocking"), {"type": "next_idle"})
+                        
                     else:
                         self.publish(self.make_node("{namespace}/app_manager/idle"), {})
 
@@ -199,11 +201,11 @@ class MyLoop(Loop):
 
         else:
             now_time = datetime.now() # datetime
-            now_time = now_time.strftime("%H:%M:%S") # datetime -> string
-            now_time = datetime.strptime(now_time, "%H:%M:%S") # string -> datetime
+            now_time = now_time.strftime("%Y-%m-%d %H:%M:%S") # datetime -> string
+            now_time = datetime.strptime(now_time, "%Y-%m-%d %H:%M:%S") # string -> datetime
 
             end_time = res.body["end_time"]
-            end_time = datetime.strptime(end_time, "%H:%M:%S") # string -> datetime
+            end_time = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S") # string -> datetime
 
             self.immediate_local_charging_schedule = dict()
             self.is_canceled_immediate_charging = False
@@ -211,9 +213,9 @@ class MyLoop(Loop):
             # Inspection Service
             if self.service_mode == SERVICE_INSPECTION:
                 self.immediate_local_charging_schedule = self.create_schedule_template_for_insepction(
-                    start_time=now_time.strftime("%H:%M:%S"),
-                    end_time=end_time.strftime("%H:%M:%S"),
-                    calc_end_time=end_time.strftime("%H:%M:%S"),
+                    start_time=now_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    end_time=end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    calc_end_time=end_time.strftime("%Y-%m-%d %H:%M:%S"),
                     type="I",
                     location="-1",
                     gate="-1",
@@ -233,8 +235,8 @@ class MyLoop(Loop):
             # Quarantine Service
             elif self.service_mode == SERVICE_QUARANTINE:
                 self.immediate_local_charging_schedule = self.create_schedule_template_for_quarantine(
-                    start_time=now_time.strftime("%H:%M:%S"),
-                    end_time=end_time.strftime("%H:%M:%S"),
+                    start_time=now_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    end_time=end_time.strftime("%Y-%m-%d %H:%M:%S"),
                     type="I",
                     location= "-1",
                     name=self.service_mode
@@ -394,11 +396,9 @@ class MyLoop(Loop):
             self.logger.warning("\n 즉시 로컬 충전 스케줄이 아직 존재합니다... \n")
 
             now_time = datetime.now() # datetime
-            now_time = now_time.strftime("%H:%M:%S") # datetime -> string
-            now_time = datetime.strptime(now_time, "%H:%M:%S") # string -> datetime
 
             end_time = self.immediate_local_charging_schedule["end_time"]
-            end_time = datetime.strptime(end_time, "%H:%M:%S") # string -> datetime
+            end_time = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S") # string -> datetime
 
             """ 즉시 충전은 우선 순위가 가장 높기 때문에 무조건 설정해준 end_time까지 유지한다. """
             if now_time < end_time:
@@ -431,6 +431,7 @@ class MyLoop(Loop):
             end_time = self.immediate_local_mission_schedule["end_time"]
             end_time = datetime.strptime(end_time, "%H:%M:%S") # string -> datetime
 
+            """ 즉시 충전은 우선 순위가 가장 높기 때문에 무조건 설정해준 end_time까지 유지한다. """
             if now_time < end_time:
                 # 즉시 임무를 중간에 취소하고 충전소에 복귀했으나, 즉시 로컬 임무 스케줄이 미처 삭제되지 않은 경우
                 if self.cur_display in ["charging", "console"] or self.is_canceled_immediate_mission == True:
