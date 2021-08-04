@@ -431,6 +431,7 @@ class MyLoop(Loop):
             end_time = self.immediate_local_mission_schedule["end_time"]
             end_time = datetime.strptime(end_time, "%H:%M:%S") # string -> datetime
 
+            """ 즉시 충전은 우선 순위가 가장 높기 때문에 무조건 설정해준 end_time까지 유지한다. """
             if now_time < end_time:
                 # 즉시 임무를 중간에 취소하고 충전소에 복귀했으나, 즉시 로컬 임무 스케줄이 미처 삭제되지 않은 경우
                 if self.cur_display in ["charging", "console"] or self.is_canceled_immediate_mission == True:
