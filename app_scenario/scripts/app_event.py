@@ -6,6 +6,7 @@ import signal
 import traceback
 from datetime import datetime
 import dateutil.parser
+
 from rade.modulebase import Loop, RosWrapper
 from rade.common import ResponseInfo
 from rade.utils import *
@@ -18,14 +19,10 @@ class MyLoop(Loop):
         return ResponseInfo()
     
     def on_resume(self, event):
-        '''
-            Read the required yaml file
-        '''
+        """ Read the required yaml file """
         self.schedule_doc = self.load_document("schedule")
 
-        '''
-            Flags for others
-        '''
+        """ Flags for others """
         self.now_time = None
         self.start_time = None
         self.end_time = None
@@ -34,9 +31,7 @@ class MyLoop(Loop):
         self.gate_name = None
         self.location_name = None
 
-        '''
-            Start Check Schedule and Mission Start
-        '''
+        """ Start Check Schedule and Mission Start """
         self.check_schedule()
 
         return ResponseInfo()
@@ -168,6 +163,11 @@ class MyLoop(Loop):
             )
 
         else:
+            '''
+                1. inspection
+                2. quarantine
+                3. charging
+            '''
             if self.mode_name == SERVICE_INSPECTION and self.gate_name != None and self.gate_name != "-1":
                 self.logger.info("\n 감시 서비스 시작!! \n")
 

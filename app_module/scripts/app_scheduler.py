@@ -18,32 +18,24 @@ SERVICE_QUARANTINE = "quarantine"
 
 class MyLoop(Loop):
     def on_create(self, event):
-        '''
-            Parse info from preference.yaml
-        '''
+        """ Parse info from preference.yaml """
         self.preferences_doc = self.load_document("preferences")
         self.low_battery = self.preferences_doc["LOW_BATTERY"]
         self.service_mode = self.preferences_doc["MODE"]
 
-        '''
-            Parse info from inspection_location.yaml
-        '''
-        self.ip_loc_doc = self.load_document("inspection_location")
+        """ Parse info from quarantine_location.yaml """
+        self.qa_loc_doc = self.load_document("quarantine_location")
 
-        '''
-            Erase exist schedule
-        '''
+        """ Erase exist schedule """
         self.save_document("schedule", [])
 
-        '''
-            Flags for running the service
-        '''
+        """ Flags for running the service """
         self.is_charging = False
         self.is_low_battery = False
+        self.is_canceled_immediate_mission = True
+        self.is_canceled_immediate_charging = True
         
-        '''
-            Flags for others
-        '''
+        """ Flags for others """
         self.cur_display = "app_console"
         self.cur_battery = 100
         self.enough_battery = 100
@@ -51,12 +43,14 @@ class MyLoop(Loop):
         self.time_offset_prev = 0
         self.time_offset_next = 0
         
+        self.master_poi_doc = None
         self.schedule_doc = None
         self.immediate_response_data = None
 
-        self.immediate_mission_schedule = dict()
-        self.immediate_charging_schedule = dict()
-        self.regular_mission_schedule = dict()
+        self.immediate_local_mission_schedule = dict()
+        self.immediate_local_charging_schedule = dict()
+        self.immediate_agent_charging_schedule = dict()
+        self.regular_agent_mission_schedule = dict()
         
         self.receive_schedules_data = []
         self.receive_arrivals_data = []
@@ -65,7 +59,8 @@ class MyLoop(Loop):
         self.add_listener(self.make_node("{namespace}/robot_display/event"), self.on_robot_display)
         self.add_listener(self.make_node("{namespace}/sero_mobile/battery"), self.on_battery_status)
         self.add_listener(self.make_node("{namespace}/charging/low_battery"), self.on_low_battery_status)
-        self.add_listener(self.make_node("{namespace}/schedule/run_immediately"), self.on_immediate_schedule)
+        self.add_listener(self.make_node("{namespace}/schedule/write_immediate_mission"), self.on_immediate_local_mission_schedule)
+        self.add_listener(self.make_node("{namespace}/schedule/write_immediate_charging"), self.on_immediate_local_charging_schedule)
         self.add_listener(self.make_node("{namespace}/control_server_data/arrived"), self.on_server_data_arrived)
         
         return ResponseInfo()
@@ -103,13 +98,12 @@ class MyLoop(Loop):
         self.is_low_battery = False
 
     # console 화면과 nats로 통신, 로컬에서 긴급 임무를 주어질 경우 바로 동작할 수 있도록 publish function을 사용한다.
-    # (fix #2) app_console에서 즉시 임무 실행 시, /schedule/run_immediately nats를 통해 request body 전달.
-    def on_immediate_schedule(self, res):
+    def on_immediate_local_mission_schedule(self, res):
         if "canceled" in res.body:
-            self.logger.info("\n\n <<<<<<<<<< [Immediate Mission Schedule] Canceled from Console Display >>>>>>>>>> \n\n")
+            self.logger.info("\n\n <<<<<<<<<< [Immediate Local Mission Schedule] Canceled from Console Display >>>>>>>>>> \n\n")
 
-            self.immediate_mission_schedule = dict()
-            # 즉시 임무 수행이 취소된 경우에도 schedule.yaml 파일을 비우도록 해야 한다. - 1
+            self.immediate_local_mission_schedule = dict()
+            self.is_canceled_immediate_mission = True
             self.save_document("schedule", [])
 
         else:
@@ -120,7 +114,8 @@ class MyLoop(Loop):
             end_time = res.body["end_time"]
             end_time = datetime.strptime(end_time, "%H:%M:%S") # string -> datetime
 
-            self.immediate_mission_schedule = dict()
+            self.immediate_local_mission_schedule = dict()
+            self.is_canceled_immediate_mission = False
 
             # Inspection Service
             if self.service_mode == SERVICE_INSPECTION:
@@ -130,7 +125,7 @@ class MyLoop(Loop):
                     location_name = self.find_location_with_gate(gate)
                     
                     if location_name != None:
-                        self.immediate_mission_schedule = self.create_schedule_template_for_insepction(
+                        self.immediate_local_mission_schedule = self.create_schedule_template_for_insepction(
                             start_time=now_time.strftime("%H:%M:%S"),
                             end_time=end_time.strftime("%H:%M:%S"),
                             calc_end_time=datetime.strftime(end_time, "%H:%M:%S"),
@@ -140,28 +135,29 @@ class MyLoop(Loop):
                             name=self.service_mode
                         )
                         
-                        self.logger.info("\n\n <<<<<<<<<< [Immediate Mission Schedule] Approved from Console Display >>>>>>>>>> \n\n")
-                        self.save_document("schedule", [self.immediate_mission_schedule])
+                        self.logger.info("\n\n <<<<<<<<<< [Immediate Local Mission Schedule] Approved from Console Display >>>>>>>>>> \n\n")
+                        self.save_document("schedule", [self.immediate_local_mission_schedule])
                         
                         # 충전소 안에서는 undocking을 먼저
                         if self.cur_display == "charging" or self.is_charging == True:
                             self.publish(self.make_node("{namespace}/app_manager/undocking"), {"type": "next_idle"})
+
                         # 충전소 밖에서는 바로 임무 수행
                         else:
                             self.publish(self.make_node("{namespace}/app_manager/idle"), {})
 
                     else:
-                        self.logger.error("\n\n <<<<<<<<<< [Immediate Mission Schedule] There is no location name match with gate >>>>>>>>>> \n\n")
+                        self.logger.error("\n\n <<<<<<<<<< [Immediate Local Mission Schedule] There is no location name match with gate >>>>>>>>>> \n\n")
 
                 else:
-                    self.logger.error("\n\n <<<<<<<<<< [Immediate Mission Schedule] You entered the wrong end time >>>>>>>>>> \n\n")
+                    self.logger.error("\n\n <<<<<<<<<< [Immediate Local Mission Schedule] You entered the wrong end time >>>>>>>>>> \n\n")
                     
             # Quarantine Service
             elif self.service_mode == SERVICE_QUARANTINE:
                 location = res.body["location"]
 
                 if now_time < end_time:
-                    self.immediate_mission_schedule = self.create_schedule_template_for_quarantine(
+                    self.immediate_local_mission_schedule = self.create_schedule_template_for_quarantine(
                         start_time=now_time.strftime("%H:%M:%S"),
                         end_time=end_time.strftime("%H:%M:%S"),
                         type="I",
@@ -169,29 +165,90 @@ class MyLoop(Loop):
                         name=self.service_mode
                     )
 
-                    self.logger.info("\n\n <<<<<<<<<< [Immediate Mission Schedule] Approved from Console Display >>>>>>>>>> \n\n")
-                    self.save_document("schedule", [self.immediate_mission_schedule])
+                    self.logger.info("\n\n <<<<<<<<<< [Immediate Local Mission Schedule] Approved from Console Display >>>>>>>>>> \n\n")
+                    self.save_document("schedule", [self.immediate_local_mission_schedule])
                     
                     if self.cur_display == "charging" or self.is_charging == True:
                         self.publish(self.make_node("{namespace}/app_manager/undocking"), {"type": "next_idle"})
+                        
                     else:
                         self.publish(self.make_node("{namespace}/app_manager/idle"), {})
 
                 else:
-                    self.logger.error("\n\n <<<<<<<<<< [Immediate Mission Schedule] You entered the wrong end time >>>>>>>>>> \n\n")
+                    self.logger.error("\n\n <<<<<<<<<< [Immediate Local Mission Schedule] You entered the wrong end time >>>>>>>>>> \n\n")
 
             else:
-                self.logger.error("\n\n <<<<<<<<<< [Immediate Mission Schedule] You entered the wrong service mode name >>>>>>>>>> \n\n")
+                self.logger.error("\n\n <<<<<<<<<< [Immediate Local Mission Schedule] You entered the wrong service mode name >>>>>>>>>> \n\n")
 
     # gate 값으로 location 값 찾기
     def find_location_with_gate(self, target_gate):
-        locations = self.ip_loc_doc[0]["locations"]
+        locations = self.master_poi_doc[0]["locations"]
 
         for loc in locations:
             for gate in loc["gates"]:
                 if gate["name"] == target_gate:
                     return loc["name"]
         return None
+
+    # 로컬 즉시 충전 callback 함수
+    def on_immediate_local_charging_schedule(self, res):
+        if "canceled" in res.body:
+            self.logger.info("\n\n <<<<<<<<<< [Immediate Local Charging Schedule] Canceled from Console Display >>>>>>>>>> \n\n")
+
+            self.immediate_local_charging_schedule = dict()
+            self.is_canceled_immediate_charging = True
+            self.save_document("schedule", [])
+
+        else:
+            now_time = datetime.now() # datetime
+            now_time = now_time.strftime("%Y-%m-%d %H:%M:%S") # datetime -> string
+            now_time = datetime.strptime(now_time, "%Y-%m-%d %H:%M:%S") # string -> datetime
+
+            end_time = res.body["end_time"]
+            end_time = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S") # string -> datetime
+
+            self.immediate_local_charging_schedule = dict()
+            self.is_canceled_immediate_charging = False
+
+            # Inspection Service
+            if self.service_mode == SERVICE_INSPECTION:
+                self.immediate_local_charging_schedule = self.create_schedule_template_for_insepction(
+                    start_time=now_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    end_time=end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    calc_end_time=end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    type="I",
+                    location="-1",
+                    gate="-1",
+                    name=self.service_mode
+                )
+                        
+                self.logger.info("\n\n <<<<<<<<<< [Immediate Local Charging Schedule] Approved from Console Display >>>>>>>>>> \n\n")
+                self.save_document("schedule", [self.immediate_local_charging_schedule])
+                        
+                # 충전소 안에서는 undocking을 먼저
+                if self.cur_display == "charging" or self.is_charging == True:
+                    self.publish(self.make_node("{namespace}/app_manager/undocking"), {"type": "next_idle"})
+                # 충전소 밖에서는 바로 임무 수행
+                else:
+                    self.publish(self.make_node("{namespace}/app_manager/idle"), {})
+
+            # Quarantine Service
+            elif self.service_mode == SERVICE_QUARANTINE:
+                self.immediate_local_charging_schedule = self.create_schedule_template_for_quarantine(
+                    start_time=now_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    end_time=end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    type="I",
+                    location= "-1",
+                    name=self.service_mode
+                )
+
+                self.logger.info("\n\n <<<<<<<<<< [Immediate Local Charging Schedule] Approved from Console Display >>>>>>>>>> \n\n")
+                self.save_document("schedule", [self.immediate_local_charging_schedule])
+                
+                if self.cur_display == "charging" or self.is_charging == True:
+                    self.publish(self.make_node("{namespace}/app_manager/undocking"), {"type": "next_idle"})
+                else:
+                    self.publish(self.make_node("{namespace}/app_manager/idle"), {})
 
     # inspection scheduler template
     def create_schedule_template_for_insepction(self, start_time, end_time, calc_end_time, type, location, gate, name):
@@ -245,12 +302,11 @@ class MyLoop(Loop):
         self.receive_arrivals_data = copy.deepcopy(tmp_arrivals_data)
         del tmp_arrivals_data
 
-        '''
-            Refine required data
-        '''
+        """ Refine required data """
         self.receive_schedules_data = sorted(self.receive_schedules_data, key=lambda x: x["starttime"])
         self.receive_arrivals_data = sorted(self.receive_arrivals_data, key=lambda x: x["estimatedDateTime"])
     
+        self.master_poi_doc = self.load_document("master_poi")
         self.schedule_doc = self.load_document("schedule")
         self.preferences_doc = self.load_document("preferences")
 
@@ -260,7 +316,7 @@ class MyLoop(Loop):
         self.service_mode = self.preferences_doc["MODE"]
         self.low_battery = self.preferences_doc["LOW_BATTERY"]
 
-        self.regular_mission_schedule = dict()
+        self.regular_agent_mission_schedule = dict()
         self.valid_master_schedule = []
 
         if self.service_mode == SERVICE_INSPECTION:
@@ -277,130 +333,155 @@ class MyLoop(Loop):
         else:
             self.logger.error("\n\n <<<<<<<<<< [Received Schedule] You entered the wrong service mode name >>>>>>>>>> \n\n")
 
-        '''
-            Publish changed enough battery value to Charing Module
-        '''
+        """ Publish changed enough battery value to Charing Module """
         if self.enough_battery != self.preferences_doc["ENOUGH_BATTERY"]:
             self.enough_battery = self.preferences_doc["ENOUGH_BATTERY"]
             self.publish(self.make_node("{namespace}/charging/event/limit_voltage_level"), {
                 "limit_voltage_level": self.enough_battery
             })
 
-        '''
-            Check receive schedule and extract valid schedule(1. Immediate Mission 2. Immediate Charging 3. Regular Mission)
-        '''
+        """ Check receive schedule and extract valid schedule(1. Immediate Local Charging 2. Immediate Local Mission 3. Immediate Agent Charging 4. Regular Agent Mission) """
         self.check_receive_schedules()
 
         self.logger.info("\n\n\n ================== [스케줄 결과 데이터] ================== \n")
-        self.logger.info("\n Immediate Mission Schedule = {}\n\n".format(self.immediate_mission_schedule))
-        self.logger.info("\n Immediate Charging Schedule = {}\n\n".format(self.immediate_charging_schedule))
-        self.logger.info("\n Regular Mission Schedule = {}\n\n\n".format(self.regular_mission_schedule))
+        self.logger.info("\n Immediate Local Charging Schedule = {}\n\n".format(self.immediate_local_charging_schedule))
+        self.logger.info("\n Immediate Local Mission Schedule = {}\n\n".format(self.immediate_local_mission_schedule))
+        self.logger.info("\n Immediate Agent Charging Schedule = {}\n\n".format(self.immediate_agent_charging_schedule))
+        self.logger.info("\n Regular Agent Mission Schedule = {}\n\n\n".format(self.regular_agent_mission_schedule))
 
-        ''' 
-            Refine Scheduler Branch Service 
+        """
+            Refine Scheduler Branch Service
         
             < 우선 순위 >
             1. Low Battery
-            2. Immediate Mission
-            3. Immediate Charging
-            4. Regular Mission
-        '''
+            2. Immediate Local Charging
+            3. Immediate Local Mission
+            4. Immediate Agent Charging
+            5. Regular Agent Mission
+        """
         if self.is_low_battery == True:
             self.publish(self.make_node("{namespace}/app_manager/charging"), {
                 "limit_voltage_level": self.enough_battery,
                 "charging_mode": "low_battery",
             })
+        
+        elif self.immediate_local_charging_schedule != dict():
+            self.logger.info("\n\n\n <<<<<<<<<< 로컬에서 즉시 충전 스케줄이 최종적으로 작성되었습니다. >>>>>>>>>> \n")
+            pass
 
         else:
-            if self.immediate_mission_schedule != dict():
-                self.logger.info("\n\n\n <<<<<<<<<< 즉시 임무 스케줄이 최종적으로 작성되었습니다. >>>>>>>>>> \n")
+            if self.immediate_local_mission_schedule != dict():
+                self.logger.info("\n\n\n <<<<<<<<<< 로컬에서 즉시 임무 스케줄이 최종적으로 작성되었습니다. >>>>>>>>>> \n")
 
-                self.valid_master_schedule = [self.immediate_mission_schedule]
+                self.valid_master_schedule = [self.immediate_local_mission_schedule]
 
-            elif self.immediate_charging_schedule != dict():
-                self.logger.info("\n\n\n <<<<<<<<<< 즉시 충전 스케줄이 최종적으로 작성되었습니다. >>>>>>>>>> \n")
+            elif self.immediate_agent_charging_schedule != dict():
+                self.logger.info("\n\n\n <<<<<<<<<< 관제에서 즉시 충전 스케줄이 최종적으로 작성되었습니다. >>>>>>>>>> \n")
 
-                self.valid_master_schedule = [self.immediate_charging_schedule]
+                self.valid_master_schedule = [self.immediate_agent_charging_schedule]
             
-            elif self.immediate_mission_schedule == dict() and self.immediate_charging_schedule == dict():
-                self.logger.info("\n\n\n <<<<<<<<<< 정기 임무 스케줄이 최종적으로 작성되었습니다. >>>>>>>>>> \n")
+            elif self.immediate_local_mission_schedule == dict() and self.immediate_agent_charging_schedule == dict():
+                self.logger.info("\n\n\n <<<<<<<<<< 관제에서 정기 임무 스케줄이 최종적으로 작성되었습니다. >>>>>>>>>> \n")
 
-                self.valid_master_schedule = [self.regular_mission_schedule]
+                self.valid_master_schedule = [self.regular_agent_mission_schedule]
 
-            '''
-                Branch Service Mode
-            '''
+            """ Branch Service Mode """
             self.change_service_module()
         
     def check_receive_schedules(self):
-        self.logger.info("\n\n <<<<<<<<<< [Step 2] 즉시 임무 스케줄 체킹 시작!!! >>>>>>>>>> \n")
+        self.logger.info("\n\n <<<<<<<<<< [Step 2] 즉시 로컬 충전 스케줄 체킹 시작!!! >>>>>>>>>> \n")
 
-        # checking immediate mission schedule
-        if self.immediate_mission_schedule != dict():
-            self.logger.warning("\n 긴급 임무 스케줄이 아직 존재합니다... \n")
+        # checking immediate local charging schedule
+        if self.immediate_local_charging_schedule != dict():
+            self.logger.warning("\n 즉시 로컬 충전 스케줄이 아직 존재합니다... \n")
 
             now_time = datetime.now() # datetime
-            now_time = now_time.strftime("%H:%M:%S") # datetime -> string
-            now_time = datetime.strptime(now_time, "%H:%M:%S") # string -> datetime
 
-            end_time = self.immediate_mission_schedule["end_time"]
-            end_time = datetime.strptime(end_time, "%H:%M:%S") # string -> datetime
+            end_time = self.immediate_local_charging_schedule["end_time"]
+            end_time = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S") # string -> datetime
 
+            """ 즉시 충전은 우선 순위가 가장 높기 때문에 무조건 설정해준 end_time까지 유지한다. """
             if now_time < end_time:
-                # 긴급 임무를 중간에 취소하고 충전소에 복귀했으나, 긴급 임무 스케줄이 미처 삭제되지 않은 경우
-                if self.cur_display in ["charging", "console"]:
-                    self.logger.info("\n 긴급 임무 스케줄을 중간에 취소했습니다... \n")
+                # 중간에 취소했으나, 즉시 로컬 충전 스케줄이 미처 삭제되지 않은 경우
+                if self.cur_display == "console" and self.is_canceled_immediate_charging == True:
+                    self.logger.info("\n 즉시 로컬 충전 스케줄을 중간에 취소했습니다... \n")
 
-                    self.immediate_mission_schedule = dict()
-
-                     # 즉시 임무 수행이 취소된 경우에도 schedule.yaml 파일을 비우도록 해야 한다. - 2
+                    self.immediate_local_charging_schedule = dict()
                     self.save_document("schedule", [])
 
                 else:
-                    self.logger.info("\n 긴급 임무 스케줄이 유지되는 중입니다... \n")
+                    self.logger.info("\n 즉시 로컬 충전 스케줄이 유지되는 중입니다... \n")
                     pass
-                    
-            # 긴급 임무 시간이 지나면 초기화(1분마다 확인하는 곳이기 때문에)
+
+            # 시간이 지나면 초기화(1분마다 확인하는 곳이기 때문에)
             else:
-                self.logger.info("\n 긴급 임무 스케줄 시간이 지났습니다... \n")
-                self.immediate_mission_schedule = dict()
+                self.logger.info("\n 즉시 로컬 충전 스케줄 시간이 지났습니다... \n")
+                self.immediate_local_charging_schedule = dict()
 
-        self.logger.info("\n\n <<<<<<<<<< [Step 3] 즉시 충전 스케줄 체킹 시작!!! >>>>>>>>>> \n")
+        self.logger.info("\n\n <<<<<<<<<< [Step 3] 즉시 로컬 임무 스케줄 체킹 시작!!! >>>>>>>>>> \n")
 
-        # checking immediate charging schedule
-        if self.immediate_charging_schedule != dict():
-            self.logger.warning("\n 긴급 충전 스케줄이 아직 존재합니다... \n")
+        # checking immediate local mission schedule
+        if self.immediate_local_mission_schedule != dict():
+            self.logger.warning("\n 즉시 로컬 임무 스케줄이 아직 존재합니다... \n")
 
             now_time = datetime.now() # datetime
             now_time = now_time.strftime("%H:%M:%S") # datetime -> string
             now_time = datetime.strptime(now_time, "%H:%M:%S") # string -> datetime
 
-            end_time = self.immediate_charging_schedule["end_time"]
+            end_time = self.immediate_local_mission_schedule["end_time"]
             end_time = datetime.strptime(end_time, "%H:%M:%S") # string -> datetime
 
-            # 긴급 충전은 우선 순위가 가장 높기 때문에 무조건 설정해준 end_time까지 유지한다.
             if now_time < end_time:
-                # 긴급 충전을 중간에 취소했으나, 긴급 충전 스케줄이 미처 삭제되지 않은 경우
+                # 즉시 임무를 중간에 취소하고 충전소에 복귀했으나, 즉시 로컬 임무 스케줄이 미처 삭제되지 않은 경우
+                if self.cur_display in ["charging", "console"] or self.is_canceled_immediate_mission == True:
+                    self.logger.info("\n 즉시 로컬 임무 스케줄을 중간에 취소했습니다... \n")
+
+                    self.immediate_local_mission_schedule = dict()
+                    self.save_document("schedule", [])
+
+                else:
+                    self.logger.info("\n 즉시 로컬 임무 스케줄이 유지되는 중입니다... \n")
+                    pass
+                    
+            # 시간이 지나면 초기화(1분마다 확인하는 곳이기 때문에)
+            else:
+                self.logger.info("\n 즉시 로컬 임무 스케줄 시간이 지났습니다... \n")
+                self.immediate_local_mission_schedule = dict()
+
+        self.logger.info("\n\n <<<<<<<<<< [Step 4] 즉시 관제 충전 스케줄 체킹 시작!!! >>>>>>>>>> \n")
+
+        # checking immediate agent charging schedule
+        if self.immediate_agent_charging_schedule != dict():
+            self.logger.warning("\n 즉시 관제 충전 스케줄이 아직 존재합니다... \n")
+
+            now_time = datetime.now() # datetime
+            now_time = now_time.strftime("%H:%M:%S") # datetime -> string
+            now_time = datetime.strptime(now_time, "%H:%M:%S") # string -> datetime
+
+            end_time = self.immediate_agent_charging_schedule["end_time"]
+            end_time = datetime.strptime(end_time, "%H:%M:%S") # string -> datetime
+
+            """ 즉시 충전은 우선 순위가 가장 높기 때문에 무조건 설정해준 end_time까지 유지한다. """
+            if now_time < end_time:
+                # 즉시 충전을 중간에 취소했으나, 즉시 관제 충전 스케줄이 미처 삭제되지 않은 경우
                 if self.cur_display == "console":
-                    self.logger.info("\n 긴급 충전 스케줄을 중간에 취소했습니다... \n")
+                    self.logger.info("\n 즉시 관제 충전 스케줄을 중간에 취소했습니다... \n")
 
-                    self.immediate_charging_schedule = dict()
-                    
-                     # 즉시 임무 수행이 취소된 경우에도 schedule.yaml 파일을 비우도록 해야 한다. - 3
+                    self.immediate_agent_charging_schedule = dict()
                     self.save_document("schedule", [])
 
                 else:
-                    self.logger.info("\n 긴급 충전 스케줄이 유지되는 중입니다... \n")
+                    self.logger.info("\n 즉시 관제 충전 스케줄이 유지되는 중입니다... \n")
                     pass
 
-            # 긴급 충전 시간이 지나면 초기화(1분마다 확인하는 곳이기 때문에)
+            # 시간이 지나면 초기화(1분마다 확인하는 곳이기 때문에)
             else:
-                self.logger.info("\n 긴급 충전 스케줄 시간이 지났습니다... \n")
-                self.immediate_charging_schedule = dict()
+                self.logger.info("\n 즉시 관제 충전 스케줄 시간이 지났습니다... \n")
+                self.immediate_agent_charging_schedule = dict()
 
-        self.logger.info("\n\n <<<<<<<<<< [Step 4] 정기 임무 스케줄 체킹 시작!!! >>>>>>>>>> \n")
+        self.logger.info("\n\n <<<<<<<<<< [Step 5] 정기 관제 임무 스케줄 체킹 시작!!! >>>>>>>>>> \n")
 
-        # checking regular mission schedule
+        # checking regular agent mission schedule
         for sch in self.receive_schedules_data:
             now_time = datetime.now() # datetime
             now_time = datetime.strftime(now_time, "%H:%M:%S") # datetime -> string
@@ -413,7 +494,7 @@ class MyLoop(Loop):
                 self.logger.info("\n 다음 스케줄까지 시간이 남았습니다. 충전소로 복귀합니다... \n")
                 
                 if self.service_mode == SERVICE_INSPECTION:
-                    self.regular_mission_schedule = self.create_schedule_template_for_insepction(
+                    self.regular_agent_mission_schedule = self.create_schedule_template_for_insepction(
                         start_time=datetime.strftime(sch_st, "%H:%M:%S"),
                         end_time=datetime.strftime(sch_et, "%H:%M:%S"),
                         calc_end_time=datetime.strftime(sch_et, "%H:%M:%S"),
@@ -425,7 +506,7 @@ class MyLoop(Loop):
                     break
 
                 elif self.service_mode == SERVICE_QUARANTINE:
-                    self.regular_mission_schedule = self.create_schedule_template_for_quarantine(
+                    self.regular_agent_mission_schedule = self.create_schedule_template_for_quarantine(
                         start_time=datetime.strftime(sch_st, "%H:%M:%S"),
                         end_time=datetime.strftime(sch_et, "%H:%M:%S"),
                         type="S",
@@ -435,7 +516,7 @@ class MyLoop(Loop):
                     break
                     
                 else:
-                    self.logger.error("\n\n <<<<<<<<<< [Regular Mission Schedule] You entered the wrong service mode name >>>>>>>>>> \n\n")
+                    self.logger.error("\n\n <<<<<<<<<< [Regular Agent Mission Schedule] You entered the wrong service mode name >>>>>>>>>> \n\n")
                     break
 
             elif sch_st <= now_time <= sch_et:
@@ -444,7 +525,7 @@ class MyLoop(Loop):
                 # 관제에서 내린 긴급 충전인 경우
                 if sch["type"] == "I":
                     if self.service_mode == SERVICE_INSPECTION:
-                        self.immediate_charging_schedule = self.create_schedule_template_for_insepction(
+                        self.immediate_agent_charging_schedule = self.create_schedule_template_for_insepction(
                             start_time=sch_st.strftime("%H:%M:%S"),
                             end_time=sch_et.strftime("%H:%M:%S"),
                             calc_end_time=sch_et.strftime("%H:%M:%S"),
@@ -456,7 +537,7 @@ class MyLoop(Loop):
                         break
                         
                     elif self.service_mode == SERVICE_QUARANTINE:
-                        self.immediate_charging_schedule = self.create_schedule_template_for_quarantine(
+                        self.immediate_agent_charging_schedule = self.create_schedule_template_for_quarantine(
                             start_time=sch_st.strftime("%H:%M:%S"),
                             end_time=sch_et.strftime("%H:%M:%S"),
                             type="I",
@@ -466,7 +547,7 @@ class MyLoop(Loop):
                         break
 
                     else:
-                        self.logger.error("\n\n <<<<<<<<<< [Immediate Charging Schedule] You entered the wrong service mode name >>>>>>>>>> \n\n")
+                        self.logger.error("\n\n <<<<<<<<<< [Immediate Agent Charging Schedule] You entered the wrong service mode name >>>>>>>>>> \n\n")
                         break
 
                 else:
@@ -510,7 +591,7 @@ class MyLoop(Loop):
                                     if sch["location"] == self.find_location_with_gate(gate):
                                         self.logger.info("\n Find location... \n")
 
-                                        self.regular_mission_schedule = self.create_schedule_template_for_insepction(
+                                        self.regular_agent_mission_schedule = self.create_schedule_template_for_insepction(
                                             start_time=datetime.strftime(sch_st, "%H:%M:%S"),
                                             end_time=datetime.strftime(sch_et, "%H:%M:%S"),
                                             calc_end_time=calc_et,
@@ -528,7 +609,7 @@ class MyLoop(Loop):
 
                     # 방역 모드인 경우, offset과 gate를 고려하지 않는다.
                     elif self.service_mode == SERVICE_QUARANTINE:
-                        self.regular_mission_schedule = self.create_schedule_template_for_quarantine(
+                        self.regular_agent_mission_schedule = self.create_schedule_template_for_quarantine(
                             start_time=datetime.strftime(sch_st, "%H:%M:%S"),
                             end_time=datetime.strftime(sch_et, "%H:%M:%S"),
                             type="S",
@@ -538,20 +619,20 @@ class MyLoop(Loop):
                         return
 
                     else:
-                        self.logger.error("\n\n <<<<<<<<<< [Regular Mission Schedule] You entered the wrong service mode name >>>>>>>>>> \n\n")
+                        self.logger.error("\n\n <<<<<<<<<< [Regular Agent Mission Schedule] You entered the wrong service mode name >>>>>>>>>> \n\n")
                         break
             
             else:
                 continue
 
-        # 계산 결과, 정기 임무 스케줄이 없는 경우
-        if self.regular_mission_schedule == dict():
+        # 계산 결과, 정기 관제 임무 스케줄이 없는 경우
+        if self.regular_agent_mission_schedule == dict():
             self.logger.info("\n 적합한 항공편 혹은 스케줄 시간이 없습니다. 충전소을 시작합니다... \n")
 
             sch_et = dateutil.parser.parse("23:50:00")
 
             if self.service_mode == SERVICE_INSPECTION:
-                self.regular_mission_schedule = self.create_schedule_template_for_insepction(
+                self.regular_agent_mission_schedule = self.create_schedule_template_for_insepction(
                     start_time=datetime.strftime(now_time, "%H:%M:%S"),
                     end_time= datetime.strftime(sch_et, "%H:%M:%S"),
                     calc_end_time=datetime.strftime(sch_et, "%H:%M:%S"),
@@ -562,7 +643,7 @@ class MyLoop(Loop):
                 )
 
             elif self.service_mode == SERVICE_QUARANTINE:
-                self.regular_mission_schedule = self.create_schedule_template_for_quarantine(
+                self.regular_agent_mission_schedule = self.create_schedule_template_for_quarantine(
                     start_time=datetime.strftime(now_time, "%H:%M:%S"),
                     end_time=datetime.strftime(sch_et, "%H:%M:%S"),
                     type="S",
@@ -571,11 +652,11 @@ class MyLoop(Loop):
                 )
             
             else:
-                self.logger.error("\n\n <<<<<<<<<< [Regular Mission Schedule] You entered the wrong service mode name >>>>>>>>>> \n\n")
+                self.logger.error("\n\n <<<<<<<<<< [Regular Agent Mission Schedule] You entered the wrong service mode name >>>>>>>>>> \n\n")
     
-    # local에서 저장되어 있는 schedule.yaml 파일(현재 진행 중인 서비스)과 관제에서 받아온 valid_master_schedule을 비교하여 서비스를 바꿔주는 function
+    """ local에서 저장되어 있는 schedule.yaml 파일(현재 진행 중인 서비스)과 관제에서 받아온 valid_master_schedule을 비교하여 서비스를 바꿔주는 function """
     def change_service_module(self):
-        self.logger.info("\n\n <<<<<<<<<< [Step 5] 서비스 모드 변환 시작!!! >>>>>>>>>> \n")
+        self.logger.info("\n\n <<<<<<<<<< [Step 6] 서비스 모드 변환 시작!!! >>>>>>>>>> \n")
 
         # 현재 상태 관리 변수(0: 변화 없음, 1: 충전 스케줄 시간 바꾸기, 2: event 호출하기)
         schedule_status = 0
@@ -692,8 +773,6 @@ class MyLoop(Loop):
                         schedule_status = 0
 
                     # 로컬(충전), 관제(충전)
-                    # 충전소로 복귀하는 상황에서도 관제에서 꾸준히 1분마다 스케줄을 업데이트 함.
-                    # 관제에서 내려온 end_time으로 업데이트 하는 경우, app_event를 다시 실행하기 때문에 충전소 복귀가 재시도하는 것처럼 보임.
                     elif loc_service == "-1" and agent_service == "-1":
                         # 충전 end_time이 서로 다른 경우, 관제 end_time으로 업데이트
                         if loc_end_time != agent_end_time:
@@ -720,18 +799,18 @@ class MyLoop(Loop):
         self.save_document("schedule", self.valid_master_schedule)
 
         if schedule_status == 0:
-            self.logger.info("\n\n <<<<<<<<<< [Step 6] {} 화면 유지!!! >>>>>>>>>> \n".format(self.cur_display))
+            self.logger.info("\n\n <<<<<<<<<< [Step 7] {} 화면 유지!!! >>>>>>>>>> \n".format(self.cur_display))
             pass
         
         elif schedule_status == 1:
-            self.logger.info("\n\n <<<<<<<<<< [Step 6] {} 화면에서 충전 시간 갱신하기!!! >>>>>>>>>> \n".format(self.cur_display))
+            self.logger.info("\n\n <<<<<<<<<< [Step 7] {} 화면에서 충전 시간 갱신하기!!! >>>>>>>>>> \n".format(self.cur_display))
 
             self.publish(self.make_node("{namespace}/charging/event/end_time"), {
                 "end_time": change_charging_end_time.isoformat()
             })
 
         elif schedule_status == 2:
-            self.logger.info("\n\n <<<<<<<<<< [Step 6] {} 화면에서 서비스 바꾸기!!! >>>>>>>>>> \n".format(self.cur_display))
+            self.logger.info("\n\n <<<<<<<<<< [Step 7] {} 화면에서 서비스 바꾸기!!! >>>>>>>>>> \n".format(self.cur_display))
 
             if self.is_charging == True:
                 self.publish(self.make_node("{namespace}/app_manager/undocking"), {"type": "next_idle"})
