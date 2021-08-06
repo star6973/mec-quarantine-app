@@ -1,5 +1,3 @@
-"use strict";
-
 import './lottie.js'
 import { Howl } from 'howler';
 
