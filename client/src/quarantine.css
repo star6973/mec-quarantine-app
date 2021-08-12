@@ -1,0 +1,21 @@
+.quar__mv {
+    width: 1920px;
+    height: 1080px;
+    left: 0;
+    top: 0;
+    background-color: black;
+    align-items: center;
+}
+.quar__title {
+    width: 100%;
+    position: absolute;
+    margin-top: 50px;
+    align-items: center;
+    color: white;
+    font-size: 80px;
+
+}
+.quar__sv {
+    width: 1920px;
+    height: 1080px;
+}
