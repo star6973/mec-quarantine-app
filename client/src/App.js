@@ -1,11 +1,13 @@
 import './App.css';
 import Inspection from "./Inspection";
-import Quarantine from './Quarantine';
+import Quarantine from "./Quarantine";
 
 function App() {
+  const status = "quaranting";
+
   return (
     <div className="App">
-      <Quarantine />
+      <Quarantine status={status} />
     </div>
   );
 }
