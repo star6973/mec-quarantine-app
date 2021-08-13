@@ -1,5 +1,0 @@
-<launch>
-    <node name="app_event" pkg="app_scenario" type="app_event.py" output="screen" /> 
-    <node name="app_inspection" pkg="app_scenario" type="app_inspection.py" output="screen" />
-    <node name="app_quarantine" pkg="app_scenario" type="app_quarantine.py" output="screen" />
-</launch>
