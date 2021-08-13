@@ -22,7 +22,7 @@
     align-items: center;
     font-family: "Roboto";
     font-weight: 600;
-    background-image: url("./img/bg-blue.png");
+    background-image: url("./images/bg-blue.png");
 }
 .insp__sv {
     width: 1920px;
@@ -32,7 +32,7 @@
     align-items: center;
     font-family: "Roboto";
     font-weight: 600;
-    background-image: url("./img/bg-red.png");
+    background-image: url("./images/bg-red.png");
 }
 .insp__main__top {
     align-items: center;

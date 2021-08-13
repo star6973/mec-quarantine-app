@@ -9,11 +9,20 @@
 .quar__title {
     width: 100%;
     position: absolute;
-    margin-top: 50px;
+    margin-top: 40px;
     align-items: center;
     color: white;
+    font-family: 'BMHANNAPro';
     font-size: 80px;
-
+}
+.quar__title__sub {
+    width: 100%;
+    position: absolute;
+    margin-top: 140px;
+    align-items: center;
+    color: white;
+    font-family: 'BMHANNAPro';
+    font-size: 50px;
 }
 .quar__sv {
     width: 1920px;
