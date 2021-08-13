@@ -1,9 +1,0 @@
-- use: True
-  image: wa-info-protect-title.png
-  speak: wa-protect-speak1.wav
-- use: True
-  image: wa-info-protect-page1.jpg
-  speak: wa-protect-speak2.wav
-- use: True
-  image: wa-info-protect-page2.jpg
-  speak: wa-protect-speak3.wav
