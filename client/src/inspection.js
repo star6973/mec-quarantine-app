@@ -66,13 +66,11 @@ const InspectUI = {
 	)
 }
 
-function Inspection() {
-	const [state, setState] = useState("temperature");
-
+function Inspection ({ status }) {
 	return (
         <div className="insp__ctrl">
 			{
-				InspectUI[state]
+				InspectUI[status]
 			}
         </div>
     )
