@@ -1,13 +1,15 @@
-import Moving from "./img/lottie/moving.json"
-import TemperatureSmall from "./img/temperature-small.png";
-import TemperatureLarge from "./img/temperature-large.png";
-import MaskSmall from "./img/mask-small.png";
-import MaskLarge from "./img/mask-large.png";
-import DistanceSmall from "./img/distance-small.png";
-import DistanceLarge from "./img/distance-large.png";
-import Protect0 from "./img/protect-0.png";
-import Protect1 from "./img/protect-1.jpg";
-import Protect2 from "./img/protect-2.jpg";
+import Moving from "./images/lottie/moving.json"
+import TemperatureSmall from "./images/temperature-small.png";
+import TemperatureLarge from "./images/temperature-large.png";
+import MaskSmall from "./images/mask-small.png";
+import MaskLarge from "./images/mask-large.png";
+import DistanceSmall from "./images/distance-small.png";
+import DistanceLarge from "./images/distance-large.png";
+import Protect0 from "./images/protect-0.png";
+import Protect1 from "./images/protect-1.jpg";
+import Protect2 from "./images/protect-2.jpg";
+
+const ProtectList = [Protect0, Protect1, Protect2];
 
 export {
     Moving,
@@ -17,7 +19,5 @@ export {
     MaskLarge,
     DistanceSmall,
     DistanceLarge,
-    Protect0,
-    Protect1,
-    Protect2
+    ProtectList
 };
