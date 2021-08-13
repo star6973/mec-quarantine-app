@@ -1,0 +1,20 @@
+{
+    "SPEAK_INTERVAL": 5000,
+    "IMAGE_SPEAK_ITEM": [
+        {
+            "use": true,
+            "image": "protect-0.png",
+            "speak": "protect-0.wav"
+        }, 
+        {
+            "use": false,
+            "image": "protect-1.jpg",
+            "speak": "protect-1.wav"
+        }, 
+        {
+            "use": true,
+            "image": "protect-2.jpg",
+            "speak": "protect-2.wav"
+        }
+    ]
+}
