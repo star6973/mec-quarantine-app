@@ -1,0 +1,7 @@
+{
+    "description": "Language Json",
+    "list": {
+        "TEXT/QUARANTINE/MOVE_TITLE": "Move To POI",
+        "TEXT/QUARANTINE/MOVE_SUB_TITLE": "이동 중입니다."
+    }
+}
