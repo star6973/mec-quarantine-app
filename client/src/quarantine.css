@@ -1,4 +1,4 @@
-.quar__mv {
+.quarantine__move {
     width: 1920px;
     height: 1080px;
     left: 0;
@@ -6,7 +6,7 @@
     background-color: black;
     align-items: center;
 }
-.quar__title {
+.quarantine__title {
     width: 100%;
     position: absolute;
     margin-top: 40px;
@@ -15,7 +15,7 @@
     font-family: 'BMHANNAPro';
     font-size: 80px;
 }
-.quar__title__sub {
+.quarantine__title__sub {
     width: 100%;
     position: absolute;
     margin-top: 140px;
@@ -24,7 +24,7 @@
     font-family: 'BMHANNAPro';
     font-size: 50px;
 }
-.quar__sv {
+.quarantine__service {
     width: 1920px;
     height: 1080px;
 }

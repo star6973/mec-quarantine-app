@@ -1,4 +1,4 @@
-.insp__mv {
+.inspection__move {
     width: 1920px;
     height: 1080px;
     left: 0;
@@ -6,7 +6,7 @@
     background-color: black;
     align-items: center;
 }
-.insp__title {
+.inspection__title {
     width: 100%;
     position: absolute;
     margin-top: 50px;
@@ -14,7 +14,7 @@
     color: white;
     font-size: 80px;
 }
-.insp__sv__default {
+.inspection__service__default {
     width: 1920px;
     height: 1080px;
     left: 0px;
@@ -24,7 +24,7 @@
     font-weight: 600;
     background-image: url("./images/bg-blue.png");
 }
-.insp__sv {
+.inspection__service {
     width: 1920px;
     height: 1080px;
     left: 0px;
@@ -34,18 +34,18 @@
     font-weight: 600;
     background-image: url("./images/bg-red.png");
 }
-.insp__main__top {
+.inspection__main__top {
     align-items: center;
     font-size: 80px;
     justify-content: center;
     display: flex;
     height: 20%;
 }
-.insp__main__bottom {
+.inspection__main__bottom {
     height: 80%;
     display: flex;
 }
-.insp__main__bottom__left__default {
+.inspection__main__bottom__left__default {
     padding-left: 30px;
     padding-bottom: 20px;
     flex-direction: column;
@@ -53,7 +53,7 @@
     width: 10%;
     justify-content: space-around;
 }
-.insp__main__bottom__left {
+.inspection__main__bottom__left {
     padding-left: 30px;
     padding-bottom: 20px;
     flex-direction: column;

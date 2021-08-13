@@ -9,10 +9,10 @@ function ChangeImage ({ delay, pageList }) {
     const useImage = pageList.filter(item => item["use"] === true);
     let useImageBox = [];
 
-    Image.ProtectList.forEach(item => {
+    Image.ProtectList.forEach(list => {
         useImage.forEach((k, v) => {
-            if (item.split("/")[3].split(".")[0] === k.image.split(".")[0]) {
-                useImageBox.push(item)
+            if (list.split("/")[3].split(".")[0] === k.image.split(".")[0]) {
+                useImageBox.push(list)
             }
         })
     });
@@ -41,13 +41,13 @@ function Quarantine ({ status }) {
 
     useEffect(() => {
         const Initializing = async () => {
-            const res_config = await Axios.get("./document/config.json");
-            const res_lang = await Axios.get("./document/language.json");
+            const response_config = await Axios.get("./document/config.json");
+            const response_language = await Axios.get("./document/language.json");
     
-            if (res_config.status === 200 && res_lang.status === 200) {
-                setDelay(res_config.data.SPEAK_INTERVAL);
-                setPageList(res_config.data.IMAGE_SPEAK_ITEM);
-                setLanguage(res_lang.data.list);
+            if (response_config.status === 200 && response_language.status === 200) {
+                setDelay(response_config.data.SPEAK_INTERVAL);
+                setPageList(response_config.data.IMAGE_SPEAK_ITEM);
+                setLanguage(response_language.data.list);
             }
         }
 
@@ -56,18 +56,18 @@ function Quarantine ({ status }) {
     }, [])
     
 	return (
-        <div className="quar__ctrl">
+        <div className="quarantine__ctrl">
 			{
                 Object.keys(pageList).length !== 0 && Object.keys(language).length !== 0 ?
                     status === "moving" ?
-                        <div className="quar__mv">
-                            <div className="quar__title">{language["TEXT/QUARANTINE/MOVE_TITLE"]}</div>
-                            <div className="quar__title__sub">{language["TEXT/QUARANTINE/MOVE_SUB_TITLE"]}</div>
-                            <LottieControl loop={true} autoplay={true} data={Image.Moving} />
+                        <div className="quarantine__move">
+                            <div className="quarantine__title">{ language["TEXT/QUARANTINE/MOVE_TITLE"] }</div>
+                            <div className="quarantine__title__sub">{ language["TEXT/QUARANTINE/MOVE_SUB_TITLE"] }</div>
+                            <LottieControl loop={ true } autoplay={ true } data={ Image.Moving } />
                         </div>
                     :
-                        <div className="quar__sv">
-                            <ChangeImage delay={delay} pageList={pageList} />
+                        <div className="quarantine__service">
+                            <ChangeImage delay={ delay } pageList={ pageList } />
                         </div>
                 :
                     <>페이지 로딩 중</>
