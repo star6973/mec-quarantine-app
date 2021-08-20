@@ -1,0 +1,26 @@
+:root {
+  --grey-0: #f8fafb;
+  --grey-1: #f1f3f5;
+  --grey-2: #e9ecef;
+  --grey-3: #dee2e6;
+  --grey-4: #ced4da;
+  --grey-5: #adb5bd;
+  --grey-6: #868e96;
+  --grey-7: #414858;
+  --grey-8: #2f3243;
+  --grey-9: #282933;
+  --primary-0: #356bcc;
+  --primary-d1: #284cb5;
+  --secondary: #009aad;
+  --accent-1: #d52e51;
+  --accent-2: #6de6ff;
+}
+body {
+  font-family: NotoSansCJKkr;
+  width: 1920px;
+  height: 1080px;
+  background: var(--grey-9);
+  margin: 0;
+  outline: 0;
+  touch-action: none;
+}
