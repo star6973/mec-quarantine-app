@@ -1,13 +1,16 @@
-import './App.css';
+import './App.scss';
+import Console from "./Console";
 import Inspection from "./Inspection";
 import Quarantine from "./Quarantine";
 
 function App() {
-  const status = "quaranting";
-
   return (
     <div className="App">
-      <Quarantine status={status} />
+      <Console />
+
+      {/* <Inspection status={status} /> */}
+      {/* <Quarantine status={status} /> */}
+
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import "./Inspection.css";
+import "./Inspection.scss";
 import * as Image from "./Image";
 import { useState } from "react";
 import { LottieControl } from "./Common";

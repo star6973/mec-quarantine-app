@@ -1,4 +1,4 @@
-import "./Quarantine.css";
+import "./Quarantine.scss";
 import * as Image from "./Image";
 import Axios from "axios";
 import { useEffect, useState } from "react";
