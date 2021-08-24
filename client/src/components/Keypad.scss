@@ -1,0 +1,175 @@
+@import "../App.scss";
+
+$background-color: #375ffa;
+$pinpad-color: #212121;
+$dot-size: 4.5rem;
+$number-size: 2.5em;
+
+@keyframes growDot {
+	100% {
+		background: white;
+		transform: scale3d(.9,.9,.9);
+	}
+}
+@keyframes grow {
+	50% {
+		transform: scale3d(1.5,1.5,1.5);
+	}
+	100% {
+		transform: scale3d(1,1,1);
+	}
+}
+@keyframes wrong {
+	20% {
+		background: crimson;
+	}
+	40% {
+		transform: translate(-15px, 0);
+	}
+	60% {
+		transform: translate(10px, 0);
+	}
+	80% {
+		transform: translate(-5px, 0);
+	}
+}
+@keyframes correct {
+	20% {
+		background: limegreen;
+	}
+	40% {
+		transform: translate(0, -15px);
+	}
+	60% {
+		transform: translate(0, 10px);
+	}
+	80% {
+		transform: translate(0, -5px);
+	}
+}
+@keyframes bg-red {
+	50% {
+		background: crimson;
+	}
+}
+@keyframes bg-green {
+	50% {
+		background: limegreen;
+	}
+}
+
+.password__ctrl {
+    width: 1920px;
+    height: 1080px;
+    display: flex;
+    flex-direction: column;
+	align-items: center;
+	justify-content: center;
+    background-color: var(--grey-0);
+
+	&.wrong {
+		animation: bg-red 1s ease-in;
+	}
+	&.correct {
+		animation: bg-green 1s ease-in;
+	}
+}
+.secure__top {
+    display: flex;
+    flex-direction: row;
+    color: black;
+
+    .robot__name {
+        font-size: 34px;
+        left: 0px;
+        bottom: 0px;
+        z-index: 100;
+    }
+    .robot__tag {
+        font-size: 34px;
+        left: 48px;
+        top: 36px;
+        z-index: 100;
+    }
+    .robot__service {
+        font-size: 34px;
+        left: 48px;
+        top: 36px;
+        z-index: 100;
+    }
+}
+.secure__middle {
+    width: 40%;
+    font-size: 40px;
+    text-align: center;
+    color: #737373;
+    background-color: var(--grey-0) !important;
+
+    .secure__dots {
+        display: flex;
+        justify-content: space-around;
+        padding: 1em;
+    }
+    .secure__dot {
+        position: relative;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: $dot-size;
+        width: $dot-size;
+        height: $dot-size;
+        transform: scale3d(.7,.7,.7);
+
+        &.active {
+            animation: growDot .5s ease;
+            animation-fill-mode: forwards;
+        }
+        &.wrong {
+            animation: wrong .9s ease;
+        }
+        &.correct {
+            animation: correct .9s ease;
+        }
+    }
+}
+.secure__bottom {
+    font-size: 40px;
+    text-align: center;
+    background-color: var(--grey-0) !important;
+}
+.secure__key__contianer {
+    display: flex;
+    width: 1328px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 32px;
+    justify-content: space-between;
+}
+.secure__key {
+    display: inline-block;
+    width: 296px;
+    height: 168px;
+    line-height: 148px;
+    vertical-align: middle;
+    text-align: center;
+    font-size: 72px;
+    border-radius: 120px;
+    border: solid 6px #e3e3e5;
+    color: #737373;
+    background-color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+	user-select: none;
+	transition: all .5s ease;
+
+	&:hover {
+		color: rgba(255,255,255, .5);
+        background-color: rgba(87, 84, 84, 0.5);
+	}
+    .secure__key__clear {
+        font-size: 64px;
+        background-color: #f5f5f5;
+    }
+    .secure__key__enter {
+        font-size: 64px;
+        color: #fff;
+    }
+}
