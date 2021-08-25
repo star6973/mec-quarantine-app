@@ -41,18 +41,18 @@ function Quarantine ({ status }) {
 
     useEffect(() => {
         const Initializing = async () => {
-            const response_config = await Axios.get("./document/config.json");
-            const response_language = await Axios.get("./document/language.json");
+            const resConfig = await Axios.get("./document/config.json");
+            const resLanguage = await Axios.get("./document/language.json");
     
-            if (response_config.status === 200 && response_language.status === 200) {
-                setDelay(response_config.data.SPEAK_INTERVAL);
-                setPageList(response_config.data.IMAGE_SPEAK_ITEM);
-                setLanguage(response_language.data.list);
+            if (resConfig.status === 200 && resLanguage.status === 200) {
+                setDelay(resConfig.data.SPEAK_INTERVAL);
+                setPageList(resConfig.data.IMAGE_SPEAK_ITEM);
+                setLanguage(resLanguage.data.list);
             }
         }
 
         // initializing config.json & language.json
-        Initializing()
+        Initializing();
     }, [])
     
 	return (
