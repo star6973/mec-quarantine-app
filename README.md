@@ -1,4 +1,4 @@
-# 2021 MEC-SERO-APP
+# MEC-SERO-APP
 ## Description
 - 코로나 19 방역을 위한 로봇 서비스 어플리케이션
 - 2가지 기능 탑재
